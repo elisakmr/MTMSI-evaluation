@@ -1,0 +1,54 @@
+---
+title: "Shapefile of number of in-situ stations per NUTS"
+output: html_document
+date: "2025-01-24"
+---
+We compute the shapefile of all the available stations (i.e. with at least one measure) per NUTS-3, no matter there altitude.
+---
+
+## Library
+
+```{r, include=FALSE}
+
+library(plyr)
+library(tidyverse)
+library(tidyr)
+library(dplyr)
+library(ncdf4)
+library(rgdal)
+library(sf)
+library(readODS)
+
+```
+
+## Loading files
+
+```{r, include=FALSE}
+
+obs_sf <- st_read(file.path("obs", "obs_sf_nut.shp"))
+obs_max <- get(load(file = file.path("obs","obs_max.RData")))
+
+# NUTS3
+shp_nut3 <- st_read(file.path("NUTS","NUTS3_3857.shp"))
+
+```
+
+## Computing shapefile of number of stations per NUTS
+We filter out stations with no data at all.
+
+```{r, include=FALSE}
+
+obs_max2 <- obs_max
+obs_max2$nyear <- apply(obs_max, 1, function(x) length(which(!is.na(x))))
+row_statok <- which(obs_max2$nyear>=1) # get row indice where stations have at least one measure
+id_statok <- obs_sf$stat_id[row_statok]
+
+obs_sf_filt <- obs_sf[row_statok,]
+
+sf_nstatemp = as.data.frame(obs_sf_filt %>% group_by(nuts_id) %>% dplyr::summarise(nb_stat=n())) %>% select(nuts_id,nb_stat)
+
+sf_nstat = merge(shp_nut3, sf_nstatemp, by='nuts_id')
+
+st_write(sf_nstat, file.path("obs", "nb_stat3857.shp"), delete_layer = TRUE)
+  
+```

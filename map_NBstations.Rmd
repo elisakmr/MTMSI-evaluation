@@ -1,0 +1,61 @@
+---
+title: "Mapping number of stations within each NUTS-3"
+output: html_document
+date: "2024-08-27"
+---
+
+## Library
+
+```{r, include=FALSE}
+
+library(tidyverse)
+library(rnaturalearth)
+library(tidyr)
+library(leaflet)
+library(sf)
+library(ggmap)
+library(ggplot2)
+library(plyr)
+library(dplyr)
+library(sf)
+library(RColorBrewer)
+library(Polychrome)
+
+```
+
+## Loading data and mapping
+
+```{r, include=FALSE}
+
+# Loading shapefile
+sf_stat <- st_read(file.path("obs", "nb_stat3857.shp"))
+
+sf_stat_class <- sf_stat %>% mutate(class_stat = cut(nb_stat, breaks = c(0,10,50,100,150), labels=c("0-10","10-50","50-100","100-150")))
+
+palette_stat = c("mistyrose", "plum2", "plum3", "plum4")
+
+# Shapefile of country borders
+worldmap <- ne_countries(scale = 'medium', type = 'map_units',
+                         returnclass = 'sf')
+
+# plot
+
+pSTAT <- ggplot() +
+  geom_sf(data=worldmap)+
+  geom_sf(data=sf_stat_class, aes(fill = class_stat), colour=NA)+
+  scale_fill_manual(values=palette_stat)+ 
+  guides(fill=guide_legend(title="Amount of stations", title.position = "top")) +
+  coord_sf(xlim = c(-2, 32), 
+              ylim = c(40, 71))+ 
+  theme_light()+
+  theme(axis.text = element_text(size=6), legend.position = "bottom", legend.title = element_text(size=9, hjust=0.5))
+
+# Saving plot
+png(file.path("carte", "NB_stat.jpg"), 
+    width = 10, height = 8, units = "in", res=300)
+pSTAT
+dev.off()
+
+```
+
+

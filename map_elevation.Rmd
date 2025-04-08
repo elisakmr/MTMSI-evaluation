@@ -1,0 +1,88 @@
+---
+title: "Mapping the mean elevation and the type of the NUTS-3"
+output: html_document
+date: "2024-07-03"
+---
+We build two side-by-side maps of the NUTS-3 mean elevations and the NUTS-3 types
+---
+## Library
+
+```{r, include=FALSE}
+
+library(tidyverse)
+library(rnaturalearth)
+library(tidyr)
+library(rgdal)
+library(sf)
+library(ggmap)
+library(ggplot2)
+library(plyr)
+library(dplyr)
+library(sf)
+library(RColorBrewer)
+library(Polychrome)
+library(ggpubr)
+
+```
+
+## Preparing shapefile
+
+```{r, include=FALSE}
+
+shp_alt_ajust3857 <- st_read(file.path("NUTS","shp_altMean3857.shp")) # shapefile of mean elevation per nuts
+
+# the initial shapefile shows nuts-3 that are either 'montagne' or an integer (the plain nuts-3 mean elevation) - we swap for 'mountain' or 'plain'
+id_plain=which(shp_alt_ajust3857$relief!="montagne")
+id_mont=which(shp_alt_ajust3857$relief=="montagne")
+shp_alt_ajust3857$relief[id_plain] <- rep("plain",length(id_plain))
+shp_alt_ajust3857$relief[id_mont] <- rep("mountain",length(id_mont))
+
+# back map
+worldmap <- ne_countries(scale = 'medium', type = 'map_units', returnclass = 'sf')
+worldmap3857 <- st_transform(worldmap, 3857) # we convert crs to pseudo mercator
+
+# color palette
+palette_alti = c("#08519C", "#427FE2", "#B2E2E2", "#41AB5D", "#C2E699", "khaki", "#FEC44F", "#FE9929", "#CC4C02", "#993404", "#662506")
+
+```
+
+## 2 plots altogether ##
+
+```{r, include=FALSE}
+
+# setting up parameters of the color scale
+absrl_max=max(shp_alt_ajust3857$alt_ideal, na.rm=TRUE)
+absrl_min=min(shp_alt_ajust3857$alt_ideal, na.rm=TRUE)
+limite=c(absrl_min, absrl_max)
+
+# mapping
+  # altitude map
+palt <- ggplot() +
+  geom_sf(data=worldmap)+
+  geom_sf(data=shp_alt_ajust3857, aes(fill = alt_ideal), colour="black")+
+  scale_fill_gradientn(colours=palette_alti, limits = limite, na.value = NA, 
+                      guide = guide_colorbar(title.position="top", title="Elevation (m)",
+                                             title.hjust=0.5, barwidth = 10, barheight = 0.5))+ 
+  coord_sf(xlim = c(-30, 50), ylim = c(34, 71))+
+  theme_light()+
+  theme(axis.text = element_text(size=6), legend.position = "bottom", legend.title = element_text(size=9))
+
+  # NUTS-3 type map
+prelief <- ggplot() +
+  geom_sf(data=worldmap)+
+  geom_sf(data=shp_alt_ajust3857,aes(fill = relief), colour="black")+
+  scale_fill_manual(values=c("#cf9d3a", "#C2E699"), na.value = NA, na.translate = F)+
+  guides(fill=guide_legend(title="NUTS-3 type", title.position = "top")) +
+  coord_sf(xlim = c(-30, 50), ylim = c(34, 71))+
+  theme_light()+
+  theme(axis.text = element_text(size=6), legend.position = "bottom", legend.title = element_text(size=9, hjust=0.5))
+
+
+png(file.path("carte","elevmaps.png"), 
+    width = 10, height = 8, units = "in", res=300)
+ggarrange(palt, prelief, ncol=2, legend = "bottom")
+dev.off()
+
+
+```
+

@@ -1,0 +1,119 @@
+---
+title: "Extract NUTS details"
+output: html_document
+date: "2024-06-11"
+---
+We extract NUTS-3 information in 3 files:
+- shapefile with NUTS-3 shapes, id. Some computing is done in order to preserve the correct writing of NUTS-3 names
+- 
+---
+
+
+
+## Library
+
+```{r, include=FALSE}
+
+library(plyr)
+library(tidyverse)
+library(tidyr)
+library(dplyr)
+library(rgdal)
+library(sf)
+library(readODS)
+library(eurostat)
+
+```
+
+## Basic shapefile of NUTS-3
+
+Basic shapefile of NUTS-3 polygons, with process to preserve NUTS-3 names
+
+```{r, include=FALSE}
+
+# shapefile of 1524 NUTS-3 from online download
+shp_nut1524 <- st_read(file.path("NUTS", "NUTS3_ID","NUTS3_ID.shp")) %>% select(-the_geom)
+shp_1524_base <- st_transform(shp_nut1524, CRS("+init=epsg:4326")) # into WGS84
+  # adjust (most of) name encoding
+Encoding(shp_1524_base$nuts_name) <- "UTF-8"
+shp_1524_base$nuts_name <- iconv(shp_1524_base$nuts_name, from="UTF-8", to="LATIN1")
+
+# shapefile of 1522 NUTS-3 with the right names from 'eurostat package'
+euro3 <- eurostat_geodata_60_2016 %>% filter(LEVL_CODE==3)
+euro3 <- euro3 %>% rename('nuts_id'="NUTS_ID") %>% select(nuts_id, NUTS_NAME)
+
+# merging the two shapefiles data to correct 1522 nuts name (the 2 remaining are ok anyway)
+shp_1524ok <- merge(shp_1524_base, st_drop_geometry(euro3), by="nuts_id", all.x=TRUE)
+shp_1524f <- shp_1524ok %>% select(-nuts_name) %>% rename('nuts_name'='NUTS_NAME')
+id_na <- which(is.na(shp_1524f$nuts_name))
+nut_na <- shp_1524f$nuts_id[which(is.na(shp_1524f$nuts_name))]
+shp_1524f$nuts_name[id_na]<-shp_1524_base$nuts_name[which(shp_1524_base$nuts_id%in%nut_na)]
+
+# 2 shp with projection 3857 and 4326
+shp_nut_3857 <- st_transform(shp_1524f, CRS("+init=epsg:3857"))
+shp_nut_4326 <- st_transform(shp_1524f, CRS("+init=epsg:4326"))
+
+st_write(shp_nut_4326, file.path("NUTS", "NUTS3_4326.shp"), delete_layer = TRUE, layer_options = "ENCODING=UTF-8")
+st_write(shp_nut_3857, file.path("NUTS", "NUTS3_3857.shp"), delete_layer = TRUE, layer_options = "ENCODING=UTF-8")
+
+```
+
+## Shapefile of NUTS with ancillary information: relief type and ideal elevation 
+
+Ancillary information extracted from MTMSI
+- we discriminate "mountain" nuts with multiple elevation available, from "plain" with single elevation: 'relief' column is either equal to 'montagne' or to an integer which is the NUTS mean elevation of the plain NUTS
+- alt_ideal: ideal mean elevation of the NUTS-3
+
+```{r, include=FALSE}
+
+hist_nut <- st_read(file.path("mtmsi_hist", "max-sd-NS-year_sf_nut.shp")) # dataframe with dates
+shp_nut3 <- st_read(file.path("NUTS","NUTS3_4326.shp")) %>% mutate(relief=NA)
+nuts_ideal <- read_ods(file.path("NUTS", "uerra5_alt_ideal_mean_nuts.ods")) # dataframe with ideal NUTS-3 mean elevation
+
+for (n in unique(hist_nut$nuts_id)){
+  
+  lin_poly=which(shp_nut3$nuts_id==n)
+  lin_hist=which(hist_nut$nuts_id==n)
+  
+  # single elevation -> keep numerical value
+  if(length(lin_hist)==1){
+    shp_nut3$relief[lin_poly] <- hist_nut$alt[lin_hist]
+  }
+  # multiple elevation -> "montagne"
+  else {
+    shp_nut3$relief[lin_poly] <- "montagne"
+  }
+}
+
+shp_nut_detail=merge(x = shp_nut3, y = nuts_ideal %>% select(nuts_id, alt_ideal), by = "nuts_id", all.x = TRUE) %>% drop_na(relief)
+
+st_write(shp_nut_detail, file.path("NUTS", "nuts_ideal.shp"), delete_layer = TRUE, layer_options = "ENCODING=UTF-8")
+
+```
+
+## Nuts average elevation with correction
+
+We compare ideal mean elevation and MTMSI elevation bands for each NUTS-3
+If the ideal mean elevation does not relate to any of the MTMSI elevation band, we put the closest one from MTMSI instead.
+
+```{r, include=FALSE}
+
+shp_altideal <- st_read(file.path("NUTS","nuts_ideal.shp"))
+hist_nut <- st_read(file.path("mtmsi_hist", "max-sd-NS-year_sf_nut.shp"))
+nuts_hist <- unique(hist_nut$nuts_id)
+shp_alt_mean = shp_altideal
+shp_alt_mean$alt_mtmsi=rep(NA,1517)
+shp_alt_mean$id_mtmsi=rep(NA,1517)
+
+for (n in nuts_hist){
+  id_alti_ajust=which.min(abs(hist_nut$alt[which(hist_nut$nuts_id==n)]-shp_altideal$alt_ideal[which(shp_altideal$nuts_id==n)]))
+  shp_alt_mean$alt_mtmsi[which(shp_alt_mean$nuts_id==n)] <- hist_nut$alt[which(hist_nut$nuts_id==n)][id_alti_ajust]
+  shp_alt_mean$id_mtmsi[which(shp_alt_mean$nuts_id==n)] <- which(hist_nut$nuts_id==n)[id_alti_ajust]
+}
+
+shp_alt_mean3857 <- st_transform(shp_alt_mean, 3857)
+
+st_write(shp_alt_mean3857, file.path("NUTS", "shp_altMean3857.shp"), append=FALSE, layer_options = "ENCODING=UTF-8")
+st_write(shp_alt_mean, file.path("NUTS", "shp_altMean4326.shp"), append=FALSE, layer_options = "ENCODING=UTF-8")
+
+```

@@ -1,0 +1,234 @@
+---
+title: "mtmsi_rmse"
+output: html_document
+date: "2023-07-13"
+---
+
+We compute list of scores (rmse, mae, bias, KGE, correlation, station median intercorrelation) related altitude, for each NUTS/elevation pair and the number of stations involved in the score.
+
+---
+
+## Library
+
+```{r, include=FALSE}
+
+library(plyr)
+library(tidyverse)
+library(tidyr)
+library(dplyr)
+library(ncdf4)
+library(rgdal)
+library(sf)
+library(Metrics)
+library(hydroGOF)
+
+```
+
+## Parameters
+
+```{r, include=FALSE}
+
+seuil_year= 20 
+year_int=c(1962:2015)
+indic <- "max-sd-NS-year"
+
+```
+
+## Loading files
+
+We load 2 types of files:
+- obs_maxfull/ hist_date = annual maxima with date as column names
+- obs_sf_nut/ hist_nut = shapefile with corresponding nut, and elevation 
+
+```{r, include=FALSE}
+
+# OBS
+obs_maxfull <- get(load(file = file.path("obs","obs_max.RData")))
+obs_maxfull <- mutate_all(obs_maxfull, function(x) as.numeric(as.character(x)))
+obs_sf_nut <- st_read(file.path("obs", "obs_sf_nut.shp"))
+
+# weird stations
+obs_maxfull[12786,] <- NA # only 0 and NA causing score error
+obs_maxfull[which(obs_sf_nut$nuts_id=='HR034'),] <- NA # very high values at 300m
+obs_maxfull[which(obs_sf_nut$nuts_id=='HR037'),] <- NA # very high values at 200m
+obs_maxfull[which(obs_sf_nut$nuts_id=='HR04B'),] <- NA # very high values at 100m
+
+# MTMSI
+hist_nut <- st_read(file.path("mtmsi_hist",paste0(indic,"_sf_nut.shp"))) # dataframe with nuts correspondances
+hist_date <- get(load(file.path("mtmsi_hist", paste0(indic,"_df_date.RData")))) # dataframe with dates
+# NUTS ID
+nuts_hist <- unique(hist_nut$nuts_id)
+# MTMSI elevations
+alt_hist <- hist_nut$alt
+
+```
+
+## Filtering on time window
+
+```{r, include=FALSE}
+
+# Filtering MTMSI 
+select_annee_hist <- year_filt(hist_date, year_int)
+hist_datafilt = hist_date[,select_annee_hist]
+
+# Filtering obs 
+select_annee_obs <- year_filt(obs_maxfull, year_int)
+obs_max = obs_maxfull[,select_annee_obs]
+
+```
+
+## Computing scores per NUTS-3 and altitude
+
+We compute scores, comparing UERRA and ground truth data, following multiple conditions:
+- presence of station
+- presence at similar altitude
+- more than 20 annual maxima available
+
+```{r, include=FALSE}
+
+rmse_list<-list()
+bias_list<-list()
+mae_list<-list()
+cor_list<-list()
+altitude_list <- list()
+station_list <- list()
+intercor_min_l <- list()
+intercor_med_l <- list()
+kge_list <- list()
+stat_row_l <- list()
+
+for (i in c(1:length(nuts_hist))){ # loop on mtmsi nuts3 
+  
+  obs_row <- which(obs_sf_nut$nuts_id==nuts_hist[i]) # station within the selected nut3
+  
+  rmse <- list()
+  biais <- list()
+  mae <- list()
+  corr <- list()
+  alt_vec <- vector()
+  stat_vec <- vector()
+  intercor_min <- vector()
+  intercor_med <- vector()
+  kkge <- list()
+  stat_row <- list()
+
+  if (length(obs_row)>=1){ # if there is at least one station in the nut
+    
+    mtmsi_rows <- which(hist_nut$nuts_id==nuts_hist[i]) # mtmsi filtered on selected nuts3
+    altitudes <- alt_hist[mtmsi_rows] # mtmsi altitude available for the nuts3
+    
+    for (j in c(1:length(altitudes))){ # loop on altitudes 
+      
+      alt_temp <- altitudes[j]
+      delta_alt=abs(obs_sf_nut$alt[obs_row]-alt_temp) # dif between selected alt and station elevations
+      select_altitude <- which(delta_alt<=150) # we keep station within 150m elevation delta
+      
+      if(length(select_altitude)>=1){ # if there is at least one station at same altitude
+        
+        obs_row_150 <- obs_row[select_altitude] # selected station based on nuts and altitude selection
+        obs_max_alt <- obs_max[obs_row_150,] # resulting data frame of max
+        annee_ok <- apply(obs_max_alt, 1, function(x) length(which(!is.na(x)))) # number of annual maxima available for every station
+        obs_nafilt <- obs_max_alt[which(annee_ok>=seuil_year),] # removing data from station with less than  20 annual maxima
+
+        mtmsi_row_alt <- mtmsi_rows[j] # mtmsi row of selected nut and altitude
+        int=as.numeric(hist_datafilt[mtmsi_row_alt,]) # extracting timeseries of that row
+        df_hist <- data.frame(year=year_int,value=int) # saving in a df
+        
+        if(max(annee_ok)>=seuil_year){ # if at least one station has enough annual max
+          
+          rmse[[j]] <- apply(obs_nafilt, 1, function(x) 
+            rmse(x[which(!is.na(x))], df_hist$value[which(!is.na(x))])/mean(x, na.rm = TRUE))
+          biais[[j]] <- apply(obs_nafilt, 1, function(x) 
+            -bias(x[which(!is.na(x))], df_hist$value[which(!is.na(x))]))
+          mae[[j]] <- apply(obs_nafilt, 1, function(x) 
+            mae(x[which(!is.na(x))], df_hist$value[which(!is.na(x))])/mean(x, na.rm = TRUE))
+          corr[[j]] <- apply(obs_nafilt, 1, function(x) 
+            cor(x[which(!is.na(x))], df_hist$value[which(!is.na(x))], method = "pearson"))
+          kkge[[j]] <- apply(obs_nafilt, 1, function(x) 
+            KGE(x[which(!is.na(x))], df_hist$value[which(!is.na(x))], method = "2012")) 
+          
+          stat_row[[j]] <- obs_row_150[which(annee_ok>=seuil_year)] # rows of selected station, to keep track of which station were used
+          
+          alt_vec[j]<-altitudes[j] # altitude evaluated
+          
+          cor_interstat=intercor(obs_nafilt) # correlation between station
+          
+          if (length(which(!is.na(cor_interstat)))>=1){ # if there is more than 1 station, we summarize the intercor score
+           intercor_min[j]=min(cor_interstat, na.rm=TRUE)
+           intercor_med[j]=median(cor_interstat, na.rm=TRUE)
+          }
+          else { # if there only one station
+           intercor_min[j]=NA
+           intercor_med[j]=NA
+          }
+          
+          stat_vec[j] <- nrow(obs_nafilt) # number of station used = with enough data
+
+        } else {        # if there is not enough annual maxima from obs
+          rmse[[j]] <- NA
+          biais[[j]] <- NA
+          mae[[j]] <- NA
+          corr[[j]] <- NA
+          kkge[[j]] <- NA
+          alt_vec[j] <- altitudes[j]
+          stat_vec[j] <- NA
+          intercor_min[j] <- NA
+          intercor_med[j] <- NA
+          stat_row[[j]] <- NA
+        }
+      
+      } else {        # if there is no station elevation close enough
+          rmse[[j]] <- NA
+          biais[[j]] <- NA
+          mae[[j]] <- NA
+          corr[[j]] <- NA
+          kkge[[j]] <- NA 
+          alt_vec[j] <- altitudes[j]
+          stat_vec[j] <- NA
+          intercor_min[j] <- NA
+          intercor_med[j] <- NA
+          stat_row[[j]] <- NA
+      }
+
+    } 
+    
+   rmse_list[[i]]<-rmse
+   bias_list[[i]]<-biais
+   mae_list[[i]]<-mae
+   cor_list[[i]]<-corr
+   kge_list[[i]]<-kkge 
+   altitude_list[[i]]<-alt_vec
+   station_list[[i]] <- stat_vec
+   intercor_min_l[[i]] <- intercor_min
+   intercor_med_l[[i]] <- intercor_med
+   stat_row_l[[i]] <- stat_row
+   
+    }else {        # if there is not any station in the nut
+      rmse_list[[i]]<-NA
+      bias_list[[i]]<-NA
+      mae_list[[i]]<-NA
+      cor_list[[i]]<-NA
+      kge_list[[i]]<-NA 
+      altitude_list[[i]] <- NA
+      station_list[[i]] <- NA
+      intercor_min_l[[i]] <- NA
+      intercor_med_l[[i]] <- NA
+      stat_row_l[[i]] <- NA
+    }
+      
+}
+
+save(rmse_list, file=file.path("mtmsi_hist", "score", "rmse_list.RData"))
+save(bias_list, file=file.path("mtmsi_hist", "score", "bias_list.RData"))
+save(mae_list, file=file.path("mtmsi_hist", "score", "mae_list.RData"))
+save(cor_list, file=file.path("mtmsi_hist", "score", "cor_list.RData"))
+save(altitude_list, file=file.path("mtmsi_hist", "score", "alt_list.RData"))
+save(station_list, file=file.path("mtmsi_hist", "score", "stat_list.RData"))
+save(intercor_min_l, file=file.path("mtmsi_hist", "score", "intcormin_list.RData"))
+save(intercor_med_l, file=file.path("mtmsi_hist", "score", "intcormed_list.RData"))
+save(kge_list, file=file.path("mtmsi_hist", "score", "kge_list.RData"))
+save(stat_row_l, file=file.path("mtmsi_hist", "score", "statrow_list.RData"))
+
+```
+
+

@@ -1,0 +1,174 @@
+---
+title: "Computing the score boxplots per elevation ranges"
+output: html_document
+date: "2023-08-28"
+---
+
+---
+
+## Library
+
+```{r, include=FALSE}
+
+library(plyr)
+library(tidyverse)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(stats)
+library(sf)
+library(ggpubr)
+
+```
+
+## Parameters
+Choose the score to be plotted
+
+```{r, include=FALSE}
+
+sel.score='intcormed' # one of rmse, mae, bias, cor, intcormed
+
+```
+
+## Loading files
+
+```{r, include=FALSE}
+
+# MTMSI details
+hist_nut <- st_read(file.path("mtmsi_hist", "max-sd-NS-year_sf_nut.shp")) # dataframe with dates
+nuts_hist <- unique(hist_nut$nuts_id)
+
+# Scores
+score_list <- get(load(file.path("mtmsi_hist","score",paste0(sel.score,"_list.RData")))) # valeur par altitude pour chaque nuts
+
+# Altitude and number of stations
+altitude_list <- get(load(file.path("mtmsi_hist","score", "alt_list.RData"))) # valeur d'altitudes par nuts
+stat_list <- get(load(file.path("mtmsi_hist","score", "stat_list.RData"))) # nb stations par altitude par nuts (nested list)
+
+```
+
+## Data frame of scores and station count per NUT3 unit
+
+```{r, include=FALSE}
+
+df_score <- data.frame()
+
+# there is only one value per NUTS/elevation pair for median and minimum intercorrelation
+if(sel.score=="intcormin"|sel.score=="intcormed"){
+  for (i in c(1:length(nuts_hist))){
+    
+    scor=score_list[[i]]
+    alt=altitude_list[[i]]
+    stat=stat_list[[i]]
+    df_temp=data.frame(valeur=scor, altitude=alt, station=stat, nuts=nuts_hist[i])
+  
+    df_score=rbind(df_score,df_temp)
+  }
+  
+} else {
+  
+  # there are multiple values per NUTS/elevation pair, we are keeping them all
+  for (i in c(1:length(nuts_hist))){
+    
+    alt=altitude_list[[i]]
+    stat=unlist(stat_list[[i]])
+    scor=unlist(score_list[[i]])
+    
+    if(length(na.omit(stat))>=1){
+    alt <- rep(alt[!is.na(stat)], stat[!is.na(stat)]) # we replicate the altitude values as there are mutliple score values
+    scor = na.omit(scor)
+    }
+    
+    df_temp=data.frame(valeur=scor, altitude=alt, nuts=nuts_hist[i])
+    
+    df_score=rbind(df_score,df_temp)
+    } 
+  
+}
+df_score %>% arrange(valeur)
+
+```
+
+## Boxplot per altitude layer: Correlation & Bias only
+We plot the score values side by side, per 500m elevation.
+
+```{r, include=FALSE}
+
+df_score2_cor = df_score %>% mutate(alti500 = cut(altitude, breaks = seq(0,3500,500), 
+                                              labels=c("0-500","500-1000","1000-1500","1500-2000",
+                                                     "2000-2500","2500-3000","3000-3500"), 
+                                              right=FALSE)) 
+df_score2_bis = df_score %>% mutate(alti500 = cut(altitude, breaks = seq(0,3500,500), 
+                                              labels=c("0-500","500-1000","1000-1500","1500-2000",
+                                                     "2000-2500","2500-3000","3000-3500"), 
+                                              right=FALSE)) 
+
+
+palette_alti = c("darkblue", "#427FE2","#41AB5D", "#FE9929", "#CC4C02", "#662506", "grey")
+
+## BIAS ##
+
+p.bias <- ggplot(df_score2_bis %>% na.omit()) + 
+  geom_boxplot(aes(x=factor(alti500),y=valeur, group=alti500, fill=alti500), show.legend = FALSE, alpha=0.5) + # set metric
+  scale_fill_manual(breaks=c("0-500","500-1000","1000-1500","1500-2000", "2000-2500","2500-3000","3000-3500"),
+                    values=palette_alti)+
+  theme_classic()+
+  labs(x="Elevation (m)", y="Bias (m)", title = '(a)') + 
+  coord_cartesian(ylim=c(-2,2))+
+  theme(axis.title.y=element_text(angle = 90, vjust = 1, size=10), 
+        axis.title.x=element_text(angle = 0, hjust = 1, size=10),
+        axis.text.y=element_text(size=8),
+        axis.text.x=element_text(size=8),
+        plot.title.position = 'plot',
+        plot.title = element_text(hjust = 0.5))
+
+## CORRELATION ##
+
+  p.cor <- ggplot(df_score2_cor %>% na.omit()) + 
+  geom_boxplot(aes(x=factor(alti500),y=valeur, group=alti500, fill=alti500), show.legend = FALSE, alpha=0.5) + # set metric
+  scale_fill_manual(breaks=c("0-500","500-1000","1000-1500","1500-2000","2000-2500","2500-3000","3000-3500"), 
+                    values=palette_alti)+
+  theme_classic()+
+  labs(x="Elevation (m)", y="Correlation", title = "(b)") + 
+  theme(axis.title.y=element_text(angle = 90, vjust = 1, size=10), 
+        axis.title.x=element_text(angle = 0, hjust = 1, size=10),
+        axis.text.y=element_text(size=8),
+        axis.text.x=element_text(size=8),
+        plot.title.position = 'plot',
+        plot.title = element_text(hjust = 0.5))+
+  scale_y_continuous(breaks = c(-1,0,0.5,1), labels=c('-1','0','0.5','1'))
+
+
+ggarrange(p.bias, p.cor,ncol=2)
+
+ggsave(file=file.path("plot", "box_score.png"), dpi = 300, width = 10, height = 5)
+
+```
+
+## Boxplot per altitude layer: Intercorrelation only
+
+```{r, include=FALSE}
+
+df_score3 = df_score %>% mutate(alti500 = cut(altitude, breaks = seq(0,3500,500), 
+                                              labels=c("0-500","500-1000","1000-1500","1500-2000",
+                                                     "2000-2500","2500-3000","3000-3500"), 
+                                              right=FALSE)) %>% na.omit() %>% filter(valeur!="single")
+
+df_score3$valeur <- as.numeric(df_score3$valeur)
+
+ggplot(df_score3 %>% na.omit()) + 
+  geom_boxplot(aes(x=factor(alti500),y=valeur, group=alti500, fill=alti500), show.legend = FALSE, alpha=0.5) + # set metric
+  scale_fill_manual(breaks=c("0-500","500-1000","1000-1500","1500-2000",
+                                                     "2000-2500","2500-3000","3000-3500"),
+                    values=palette_alti)+
+  theme_classic()+
+  labs(x="Elevation (m)", y="Inter-correlation") + 
+  theme(axis.title.y=element_text(angle = 90, vjust = 1, size=10), 
+        axis.title.x=element_text(angle = 0, hjust = 1, size=10),
+        axis.text.y=element_text(size=8),
+        axis.text.x=element_text(size=8))
+
+ggsave(file=file.path("plot", "intcormed_boxalt.png"), dpi = 300, width = 8, height = 5)
+
+```
+

@@ -1,0 +1,168 @@
+---
+title: "Mapping evaluation scores"
+output: html_document
+date: "2024-07-19"
+---
+We map side by side the correlation and bias on each NUTS-3 mean elevation that have been assessed
+In a similar way we map in another single file the KGE scores
+---
+## Library
+
+```{r, include=FALSE}
+
+library(tidyverse)
+library(rnaturalearth)
+library(tidyr)
+library(leaflet)
+library(sf)
+library(ggmap)
+library(ggplot2)
+library(plyr)
+library(dplyr)
+library(sf)
+library(RColorBrewer)
+library(Polychrome)
+library(ggpubr)
+library(scales)
+
+```
+
+## Mapping scores on MEAN elevation
+
+```{r, include=FALSE}
+
+
+####################################################################################
+## MAPPING CORR AND BIAS SIDE BY SIDE ##
+####################################################################################
+
+# LOADING DATA #
+
+shp_bias <- st_read(file.path("carte","data","bias_all.shp")) 
+shp_cor <- st_read(file.path("carte","data", "cor_all.shp")) 
+  # country borders #
+worldmap <- ne_countries(scale = 'medium', type = 'map_units',
+                         returnclass = 'sf')
+
+                                      ###### MAPPING BIAS ######
+
+pBIAS <- ggplot() +
+  geom_sf(data=worldmap)+
+  geom_sf(data=shp_bias, aes(fill = valeur), colour=NA)+
+  scale_fill_gradient2(low="blue", high="red", mid="white", midpoint=0, 
+                       name="Bias (m)", lim=c(-1.5,1.5),#breaks=c(-0.8,-0.5,0,0.5,0.8),
+                       guide = guide_colorbar(title.position="top", title.hjust=0.5, 
+                                              barwidth = 10, barheight = 0.5))+
+  coord_sf(xlim = c(0, 32), ylim = c(42, 71))+ 
+  theme_light()+
+  labs(title = "(a)")+
+  theme(axis.text = element_text(size=6), legend.title = element_text(size=10), legend.position = "bottom",
+        panel.background = element_rect(fill = "lightsteelblue2"),
+        plot.title = element_text(hjust = 0.5))
+
+                                      ###### MAPPING CORRELATION ######
+pCOR <- ggplot() +
+  geom_sf(data=worldmap)+
+  geom_sf(data=shp_cor, aes(fill = valeur), colour=NA)+ #
+  scale_fill_gradient2(low="white", high="darkgreen", mid="#ccece6", midpoint=0.5, 
+                       lim=c(-0.1,1), name="Correlation", breaks=c(0,0.2,0.4,0.6,0.8,1),
+                       guide = guide_colorbar(title.position="top", title.hjust=0.5, 
+                                              barwidth = 10, barheight = 0.5))+ 
+  coord_sf(xlim = c(0, 32), ylim = c(42, 71))+ 
+  theme_light()+
+  labs(title = "(b)")+
+  theme(axis.text = element_text(size=6), legend.title = element_text(size=10), legend.position = "bottom",
+        panel.background = element_rect(fill = "lightsteelblue2"),
+        plot.title = element_text(hjust = 0.5))
+
+png(file.path("carte","mapCOR_BIAS.jpg"), 
+    width = 10, height = 8, units = "in", res=300)
+ggarrange(pBIAS,pCOR,ncol=2, legend = "bottom")
+dev.off()
+
+
+####################################################################################
+## MAPPING KGE ONLY ##
+####################################################################################
+
+# LOADING DATA #
+
+shp_kge <- st_read(file.path("carte","data","kge_all.shp")) 
+shp_kge3857 <- st_transform(shp_kge, 3857)
+  # country borders #
+worldmap <- ne_countries(scale = 'medium', type = 'map_units',
+                         returnclass = 'sf')
+
+pKGE <- ggplot() +
+  geom_sf(data=worldmap)+
+  geom_sf(data=shp_kge, aes(fill = valeur), colour=NA)+
+  scale_fill_gradientn(colors=c("#CC3311", "white", "#009988"), values = rescale(c(-3,-0.4,1)),
+                       name="KGE", limits=c(-3,1), breaks=c(-3,-2,-0.4,1),
+                       guide = guide_colorbar(title.position="top", title.hjust=0.5, 
+                                              barwidth = 10, barheight = 0.5))+
+  coord_sf(xlim = c(0, 32), ylim = c(42, 71))+ 
+  theme_light()+
+  theme(axis.text = element_text(size=6), legend.title = element_text(size=10), 
+        legend.position = "bottom",
+        panel.background = element_rect(fill = "lightsteelblue2"))
+
+png(file.path("carte","mapKGE.jpg"), 
+    width = 10, height = 8, units = "in", res=300)
+pKGE
+dev.off()
+
+```
+
+## OPTIONNAL --- Mapping scores on a selected elevation
+It requires to have computed the required shapefile beforehand!
+
+```{r, include=FALSE}
+
+sel.alt = 2500
+
+    # country borders #
+worldmap <- ne_countries(scale = 'medium', type = 'map_units',
+                         returnclass = 'sf')
+worldmap3857 <- st_transform(worldmap, 3857) # we convert crs to pseudo mercator
+
+
+                                      ###### MAPPING BIAS ######
+
+shp_altbias <- st_read(file.path("carte", "data", paste0("bias",elevation,".shp"))) 
+bounbox = st_bbox(shp_altbias)
+
+png(file.path("carte", paste0("bias",elevation,"_map.png")), 
+    width = 10.06, height = 5, units = "in", res=300)
+
+ggplot() +
+  geom_sf(data=worldmap)+
+  geom_sf(data=shp_altbias, aes(fill = score), colour="black")+
+  scale_fill_gradient2(low="blue", high="red", mid="white", midpoint=0, n.breaks=8, name="Bias")+
+  coord_sf(xlim = c(bounbox[1],bounbox[3]), 
+              ylim = c(bounbox[2],bounbox[4]))+ 
+  theme_light()+
+  theme(axis.text = element_text(size=6))
+
+dev.off()
+
+                                      ###### MAPPING CORRELATION ######
+
+shp_altcor <- st_read(file.path("carte", "data", paste0("cor",elevation,".shp"))) 
+bounbox = st_bbox(shp_altcor)
+
+png(file.path("carte",paste0("cor",elevation,"_map.png")), 
+    width = 10.06, height = 5, units = "in", res=300)
+
+ggplot() +
+  geom_sf(data=worldmap)+
+  geom_sf(data=shp_altcor, aes(fill = score), colour="black")+
+  scale_fill_gradient2(low="white", high="#006d2c", mid="#ccece6", midpoint=0.5, n.breaks=8, name="Correlation")+
+  coord_sf(xlim = c(bounbox[1],bounbox[3]), 
+              ylim = c(bounbox[2],bounbox[4]))+ 
+  theme_light()+
+  theme(axis.text = element_text(size=6))
+
+dev.off()
+
+```
+

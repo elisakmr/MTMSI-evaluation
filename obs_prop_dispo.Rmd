@@ -1,0 +1,69 @@
+---
+title: "Fréquence stations"
+output: html_document
+date: "2023-10-17"
+---
+We plot the amount of complete winter series available each hydrological year, among the station data set.
+
+## Library
+
+```{r, include=FALSE}
+
+library(plyr)
+library(tidyverse)
+library(tidyr)
+library(dplyr)
+library(Metrics)
+library(ggplot2)
+
+```
+
+## Loading the dataset of in-situ snow depth annual maxima
+
+```{r, include=FALSE}
+
+obs_max <- get(load(file = file.path("obs", "obs_max.RData")))
+obs_max2 <- obs_max
+
+```
+
+# Shaping the data
+
+```{r, include=FALSE}
+
+obs_max2[!is.na(obs_max)]<-'timeseries' # there is a maxima
+obs_max2[is.na(obs_max)]<-'no timeseries' # there is no maxima
+
+```
+
+# Histogram plot of available winter series
+
+```{r, include=FALSE}
+
+df_plot <- obs_max2 %>% 
+    pivot_longer(
+      cols = `1962`:`2015`, 
+      names_to = 'year',
+      values_to = "data") 
+
+df_plot$year<-as.numeric(df_plot$year)
+
+ggplot(df_plot)+
+  geom_histogram(aes(x=year, fill=data), stat="count", alpha=0.5)+
+  scale_fill_manual(name="",breaks=c('timeseries','no timeseries'),
+                    values=c("#006d2c","grey"))+
+  labs(y="Stations", x="Year")+
+  scale_x_continuous(breaks = c(1960, 1965,1970,1975,1980,1985,1990,1995,2000,2005,2010,2015, 2020))+
+  scale_y_continuous(breaks = scales::pretty_breaks(n = 12))+    
+  theme_bw()+
+  theme(axis.title.y=element_text(angle = 90, vjust = 0.5, size=10), 
+        axis.title.x=element_text(angle = 0, hjust = 0.98, size=10),
+        axis.text.y=element_text(size=8),
+        axis.text.x=element_text(size=8),
+        legend.position = "bottom")
+
+ggsave(file=file.path("obs", paste0("year_available.jpg")), dpi = 300, width = 8, height = 5.5)
+
+```
+
+

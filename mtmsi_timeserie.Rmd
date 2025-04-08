@@ -1,0 +1,131 @@
+---
+title: "MTMSI timeserie"
+output: html_document
+date: "2023-08-03"
+---
+We plot the snow depth annual maxima timeseries from one NUTS/elevation pair and its associated in-situ stations used for the evaluation (i.e. in the same NUTS region, at less than 150m elevation of difference, with at least 20 annual maxima).
+---
+
+## Library
+
+```{r, include=FALSE}
+
+library(plyr)
+library(tidyverse)
+library(tidyr)
+library(dplyr)
+library(sf)
+library(ncdf4)
+library(Metrics)
+library(ggnewscale)
+library(ggplot2)
+
+```
+
+## Parameters
+The user has to specify the NUTS-3 and elevation below:
+
+```{r, include=FALSE}
+
+## user parameter  ##
+nut<- "SE311" # USER PICK
+alt=200 # USER PICK
+
+## steady parameters
+year_int = c(1962:2015)
+seuil_year = 20
+indic <- "max-sd-NS-year"
+
+```
+
+## Loading files
+
+We load MTMSI and in situ data :
+- annual maxima dataframes
+- shapefile of the same dimensions for NUTS-3 and elevation selecting
+
+```{r, include=FALSE, echo=FALSE}
+
+# MTMSI
+hist_df_date <- get(load(file.path("mtmsi_hist",paste0(indic,"_df_date.RData")))) 
+hist_sf_nut <- st_read(file.path("mtmsi_hist", paste0(indic,"_sf_nut.shp"))) 
+
+# OBS
+obs_max <- get(load(file=file.path("obs", "obs_max.RData"))) 
+obs_sf_nut <- st_read(file.path("obs", "obs_sf_nut.shp"))
+
+```
+
+## Filtering data in terms of NUTS and TIME
+
+```{r, include=FALSE}
+
+# MTMSI filtering
+select_annee_hist <- year_filt(hist_df_date, year_int)
+histrow=which(hist_sf_nut$nuts_id==nut)
+hist_nuts_year = hist_df_date[histrow,select_annee_hist] # data filtered on nuts and year
+j <- which(hist_sf_nut$alt[histrow]==alt) 
+hist=hist_nuts_year[j,] # data filtered on nuts, year, and elevation
+
+# OBS filtering
+  # time
+obs_time=obs_max[,which(colnames(obs_max)%in%year_int)]
+  # nuts
+obsrow <- which(obs_sf_nut$nuts_id==nut)
+  # altitude
+alt_temp <- obs_sf_nut$alt[obsrow]
+delta_alt=abs(alt-alt_temp) # dif between selected alt and station elevations
+obsrow.alt <- which(delta_alt<=150) # we keep station below 150m elevation difference
+obs_time_alt=obs_time[obsrow[obsrow.alt],]
+
+  # NA filtering
+station_ok <- which(apply(obs_time_alt,1,function(x) 
+            length(which(!is.na(x)))>=seuil_year)) # valid station, more than 20 missing annual maxima
+nstat <- length(station_ok)
+obs_ok <- obs_time_alt[station_ok,] 
+
+# Shapefile plot-friendly dataframe
+df_plot=data.frame(cbind(year_int, t(obs_ok), t(hist)))
+stat_nm <- obs_sf_nut$stat_id[obsrow[obsrow.alt][station_ok]] # station id
+
+colnames(df_plot) <- c("year",stat_nm,"UERRA") 
+
+df_plot_shape <- df_plot %>% 
+  pivot_longer(
+    cols = colnames(df_plot)[2]:`UERRA`, 
+    names_to = "nom",
+    values_to = "value")
+
+df_plot_shape$year <- as.numeric(df_plot_shape$year)
+df_plot_shape$value <- as.numeric(df_plot_shape$value)
+
+```
+
+## Plot timeserie YEARLY MAX
+
+```{r, include=FALSE}
+
+# plotting
+ggplot(df_plot_shape)+
+  geom_line(data = df_plot_shape %>% filter(nom!='UERRA'), aes(y=value,x=year,colour=nom), 
+            linewidth=0.5, show.legend = FALSE)+
+  labs(y="Maximum snow depth (m)", x="Year")+
+  scale_color_manual(name="In situ observations: ",values=c(
+"#86da68","#002f51","#00e957","#c16fff","#3bc400","#d5ca36","#dd8400","#0050bd","#650ac3","#40004c","#d1ff9e",
+"darkblue","grey","#b2d3ff", "#b7ffe3","#340005","#fffa95","#fc86ff","#fdb95b","#0193aa","pink",
+"#00627f","#ffe494","#00333b","#e8ffdd","#8f4e00","#607100","#ffd5f7","#008e47","#ffadb8","#2c3c00",
+"#146300", "#fdb95b", "#52561a", "#b2d257", "#a65630", "#cfc088"))+  # labels=TRUE
+  new_scale_colour() +
+  geom_line(data = (df_plot_shape %>% filter(nom=='UERRA')),aes(y=value,x=year, color="UERRA"), linewidth=0.6)+
+  scale_color_manual(name='MTMSI:',values=c(UERRA="red"), labels = NULL)+
+  scale_x_continuous(breaks = scales::pretty_breaks(n = 12), minor_breaks = seq(1960,2020,1))+
+  #coord_cartesian(ylim=c(0,3.5))+
+  #labs(title = paste0(nut, " ", alt,"m"))+
+  labs(title = "(a)")+
+  theme_bw()+
+  theme(legend.position = "bottom", plot.title.position = 'plot', plot.title = element_text(hjust = 0.5))
+
+ggsave(file=file.path("plot", paste0(nut,"_",alt,"tsALLstat.jpg")), dpi = 300, width = 8, height = 4)
+
+```
+

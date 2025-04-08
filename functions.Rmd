@@ -1,0 +1,102 @@
+---
+title: "Functions"
+output: html_document
+date: "2023-06-21"
+---
+Code gathering all handmade function used in the code package.
+---
+
+## Filtering MONTH and YEAR
+
+Function that enables to filter a data frame of daily values on a time window split between 2 years (hydrological year for instance).
+- df = dataframe of daily value of snow depth with date in YYYY-MM-DD format as the column names (df format = station*date).
+- month1 = month to be filtered in year 'annee-1'
+- month2 = month to be filtered in year 'annee'
+- annee = year to filter out
+
+```{r, include=FALSE}
+
+date_filt=function(df,month1,month2,annee){
+
+  col_year1_obs <- vector()
+  col_year2_obs <- vector()
+
+  for(i in c(1:length(colnames(df)))){
+      year=as.numeric(str_split(colnames(df)[i], "-")[[1]][1])
+      mois1=as.numeric(str_split(colnames(df)[i], "-")[[1]][2])
+      if (year == annee & mois1 %in% month1){
+       col_year1_obs[i] <- i
+      } else if (year == annee+1 & mois1 %in% month2){
+      col_year2_obs[i] <- i
+      }
+  }
+  select_annee1_obs <- which(!is.na(col_year1_obs))
+  select_annee2_obs <- which(!is.na(col_year2_obs))
+
+  list_result <- list(select_annee1_obs,select_annee2_obs)
+return(list_result)
+
+}
+
+```
+
+## Filtering YEAR
+
+Function that enables to filter a data frame of annual values on a selected year.
+- df = dataframe of annual maxima with date in YYYY-MM-DD format as the column names (df format = station*date).
+- annee = year to be filtered on
+
+```{r, include=FALSE}
+
+year_filt=function(df,annee){
+  
+  col_year <- vector()
+
+  for(i in c(1:length(colnames(df)))){
+      year=as.numeric(str_split(colnames(df)[i], "-")[[1]][1])
+      if (year %in% annee){
+       col_year[i] <- i
+      }
+  }
+    select_annee <- which(!is.na(col_year))
+
+return(select_annee)
+
+}
+
+```
+
+## Intercorrelation
+
+Function that computes a vector of one-to-one Pearson correlation values, among a group of observations.
+obs = df with station*date
+
+```{r, include=FALSE}
+
+library(combinat)
+
+intercor = function(obs){
+  vec_corel = vector()
+  nstat = dim(obs)[1]
+  if (is.null(nstat)|nstat==1){
+    vec_corel="single"
+  }
+  else if (nstat==2){
+    obs1=as.numeric(obs[1,])
+    obs2=as.numeric(obs[2,])
+    vec_corel=cor(obs1,obs2, method = "pearson", use="pairwise.complete.obs")
+  }
+  
+  else{combin <- combn(c(1:nstat), 2)
+  
+    for (i in c(1:dim(combin)[2])){
+      obs1=as.numeric(obs[combin[1,i],])
+      obs2=as.numeric(obs[combin[2,i],])
+      vec_corel[i]=cor(obs1, obs2, method = "pearson", use="pairwise.complete.obs")
+    }
+  }
+  
+  return(vec_corel)
+}
+
+```

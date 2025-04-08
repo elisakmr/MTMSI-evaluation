@@ -1,0 +1,99 @@
+---
+title: "Shapefile of score on NUTS-3 mean elevation"
+output: html_document
+date: "2024-06-13"
+---
+We compute a shapefile of the selected score, on the mean elevation of all NUTS-3 (if available)
+---
+## Library
+
+```{r, include=FALSE}
+
+library(tidyverse)
+library(tidyr)
+library(rgdal)
+library(sf)
+library(ggmap)
+library(ggplot2)
+library(plyr)
+library(dplyr)
+library(sf)
+
+```
+
+## Parameters
+
+```{r, include=FALSE}
+
+sel.score='cor' # one of: bias cor kge
+indic <- "max-sd-NS-year"
+
+```
+
+## Loading files
+
+```{r, include=FALSE}
+
+# MTMSI details
+hist_nut <- st_read(file.path("mtmsi_hist", paste0(indic,"_sf_nut.shp"))) # shapefile with NUTS-3 details
+nuts_hist <- unique(hist_nut$nuts_id)
+
+# altitude and stations
+altitude_list <- get(load(file.path("mtmsi_hist","score", "alt_list.RData"))) # evaluated altitude for each nuts
+stat_list <- get(load(file.path("mtmsi_hist","score", "stat_list.RData"))) # amount of stations for each NUTS/elev evaluation
+
+# SCORE
+score_list <- get(load(file.path("mtmsi_hist","score",paste0(sel.score,"_list.RData")))) # score values for each NUTS
+
+# NUT
+shp_nut3 <- st_read(file.path("NUTS","NUTS3_4326.shp")) # nuts shapefile
+shp_nut_elev <- st_read(file.path("NUTS","shp_altMean4326.shp")) # nuts with mean elevation shapefile
+
+```
+
+## Data frame of score and station count per NUT3 unit
+
+```{r, include=FALSE}
+
+# extracting list of scores into dataframe
+df_score <- data.frame()
+
+for (i in c(1:length(nuts_hist))){
+  val=unlist(lapply(score_list[[i]], function(x) median(unlist(x), na.rm=TRUE))) # summarizing score values for each NUTS/elevation: median of values generated from the pool of stations
+  alt=unlist(altitude_list[[i]]) # altitude assessed
+  stat=unlist(stat_list[[i]]) # number of stations involved
+  df_temp=data.frame(valeur=val, altitude=alt, station=stat, nuts_id=nuts_hist[i])
+  df_score=rbind(df_score,df_temp)
+} 
+
+```
+
+## Adding mean elevation 
+We intersect the score shapefile generated above (where 1 row = 1 NUTS/elev) with the NUTS-3 mean elevation shapefile (where 1 row = 1 NUTS) 
+
+```{r, include=FALSE}
+
+df_score2 = data.frame()
+
+for (n in nuts_hist){
+  temp_alt = shp_nut_elev$alt_mtmsi[which(shp_nut_elev$nuts_id==n)]
+  df_temp = df_score %>% filter(nuts_id==n) %>% filter(altitude==temp_alt)
+  
+  df_score2 = rbind(df_score2,df_temp)
+}
+
+df_summary=df_score2 %>% na.omit()
+
+```
+
+## Shapefile of score and nb_stat
+In order to have all NUTS-3 details, we merge the above shapefile with the one of NUTS-3
+
+```{r, include=FALSE}
+
+shp_score <- merge(shp_nut3,df_summary,by='nuts_id')
+
+st_write(shp_score, file.path("carte", "data", paste0(sel.score,"_all.shp")), append=FALSE)
+
+```
+

@@ -1,0 +1,122 @@
+---
+title: "Amount of evaluation"
+output: html_document
+date: "2024-10-15"
+---
+We plot the histogram of the amount of evaluated MTMSI dataset
+---
+## Library
+
+```{r, include=FALSE}
+
+library(plyr)
+library(tidyverse)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(stats)
+library(sf)
+library(ggpubr)
+
+```
+
+## Loading files
+We load the intcormed score, as there is only one value per NUTS/elevation pair.
+
+```{r, include=FALSE}
+
+# MTMSI details
+hist_nut <- st_read(file.path("mtmsi_hist","max-sd-NS-year_sf_nut.shp")) 
+nuts_hist <- unique(hist_nut$nuts_id)
+
+# SCORE
+score_list <- get(load(file.path("mtmsi_hist", "score", "intcormin_listNEW.RData"))) 
+
+# altitude and stations
+altitude_list <- get(load(file.path("mtmsi_hist","score", "alt_list.RData"))) # valeur d'altitudes par nuts
+stat_list <- get(load(file.path("mtmsi_hist","score", "stat_list.RData"))) # nb stations par altitude par nuts (nested list)
+
+```
+
+## Data frame of score amount per altitude
+
+```{r, include=FALSE}
+
+                                            ## Total amount of MTMSI data ##
+
+df_altitudes <- data.frame(alt=hist_nut$alt)
+df_mtmsiTOT = df_altitudes %>% mutate(alt500 = cut(alt, breaks = seq(0,3500,500), 
+                                              labels=c("0-500","500-1000","1000-1500","1500-2000",
+                                                       "2000-2500","2500-3000", "3000-3500"), 
+                                              right=FALSE))
+
+
+                                          ## Amount of MTMSI data EVALUATED ##
+
+df_score <- data.frame()
+
+  for (i in c(1:length(nuts_hist))){
+
+    scor=score_list[[i]]
+    alt=altitude_list[[i]]
+    stat=stat_list[[i]]
+    df_temp=data.frame(valeur=scor, altitude=alt, station=stat, nuts=nuts_hist[i])
+
+    df_score=rbind(df_score,df_temp)
+  }
+
+df_evaluate = df_score %>% mutate(alt500 = cut(altitude, breaks = seq(0,3500,500), 
+                                              labels=c("0-500","500-1000","1000-1500","1500-2000",
+                                                     "2000-2500","2500-3000","3000-3500"), 
+                                              right=FALSE)) 
+
+df_tot <- df_mtmsiTOT %>% select(alt500) %>% mutate(cat="total")
+df_eval <- df_evaluate %>% na.omit() %>% select(alt500) %>% mutate(cat="eval")
+
+                                          ## Merging dataframes of available and evaluated MTMSI ##
+
+df_overlay = rbind(df_tot, df_eval)
+
+```
+
+## Histograms of data amount and proportion evaluated per 500m elevation range
+
+```{r, include=FALSE}
+
+ggplot(df_overlay) +
+  geom_histogram(data = subset(df_overlay, cat=="total"), aes(y=alt500, color=cat), 
+                 fill=NA, stat="count") +
+  geom_histogram(data = subset(df_overlay,cat=="eval"), aes(y=alt500, fill=cat), 
+                 alpha=0.5, stat="count") +
+  scale_fill_manual(name="", values=c("#006d2c"),labels=c("NUTS.altitude evaluated")) +
+  scale_colour_manual(name="", values=c("black"),labels=c("NUTS.altitude tot")) +
+  labs(x="Count", y="Altitude (m)")+
+  theme_void()+
+  theme(axis.title.y=element_text(angle=90, vjust = 0.5, size=12), 
+        axis.title.x=element_text(hjust=1.025, size=12),
+        axis.text.y=element_text(size=10),
+        axis.text.x=element_text(size=10),
+        plot.margin = margin(r = 10))+
+  scale_x_continuous(breaks = seq(0,2000,200))
+
+ggsave(file=file.path("plot", "histo_prop_eval.jpg"), dpi = 300, width = 8, height = 5)
+
+```
+
+## FOR PAPER: calculating extact percentage 
+
+```{r, include=FALSE}
+
+df_ev500 <- df_overlay %>% filter(cat=='eval' & alt500=='0-500')
+df_ev1000 <- df_overlay %>% filter(cat=='eval' & alt500=='500-1000')
+df_ev1500 <- df_overlay %>% filter(cat=='eval' & alt500=='1000-1500')
+df_toto500 <- df_overlay %>% filter(cat=='total' & alt500=='0-500')
+df_toto1000 <- df_overlay %>% filter(cat=='total' & alt500=='500-1000')
+df_toto1500 <- df_overlay %>% filter(cat=='total' & alt500=='1000-1500')
+
+(557+296+681)/(1919+1642+1373)
+df_overlay%>% filter(cat=='eval' & alt500=='3000-3500')
+
+```
+
+

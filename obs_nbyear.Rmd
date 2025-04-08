@@ -1,0 +1,72 @@
+---
+title: "obs_nbyear"
+output: html_document
+date: "2024-01-19"
+---
+We plot the cumulative frequency of available annual maxima, among in-situ data set.
+---
+
+## Library
+
+```{r, include=FALSE}
+
+library(plyr)
+library(tidyverse)
+library(tidyr)
+library(dplyr)
+library(ncdf4)
+library(Metrics)
+library(ggnewscale)
+library(sf)
+library(ggplot2)
+
+```
+
+## Parameters
+
+```{r, include=FALSE}
+
+year_int=c(1962:2015) 
+
+```
+
+## Loading files 
+
+```{r, include=FALSE}
+
+obs_max <- get(load(file = file.path("obs","obs_max.RData")))
+
+obs_max=obs_max[,colnames(obs_max) %in% year_int]
+
+```
+
+## Computing nb year per obs station
+
+```{r, include=FALSE}
+
+df_nyear <- data.frame(nyear=apply(obs_max, 1, function(x) length(which(!is.na(x)))))
+
+```
+
+## Histogram
+
+```{r, include=FALSE}
+
+ggplot(df_nyear,aes(x=nyear))+
+  geom_histogram(aes(y=cumsum(after_stat(count))), 
+                 fill="#006d2c", stat="count", show.legend = FALSE, alpha=0.5)+
+  theme_bw()+
+  labs(y="Stations", x="Amount of available winter series")+
+  theme(axis.title.y=element_text(angle = 90, vjust = 0.5, size=10), 
+        axis.title.x=element_text(angle = 0, hjust = 0.98, size=10),
+        axis.text.y=element_text(size=8),
+        axis.text.x=element_text(size=8))+
+  scale_x_continuous(breaks = seq(0,60,10))+
+  scale_y_continuous(breaks = seq(0,15000,2500))+
+  stat_bin(aes(y=cumsum(..count..)),geom="line",color="red")
+
+ggsave(file=file.path("plot", "obs_nbyears.jpg"), dpi = 300, width = 8, height = 5.5)
+
+```
+
+
