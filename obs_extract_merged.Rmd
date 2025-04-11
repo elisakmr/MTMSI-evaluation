@@ -1,0 +1,192 @@
+---
+title: "Merging observation extracts"
+output: html_document
+date: "2024-06-07"
+---
+We merge the in-situ data sets of annual maxima: European Alp, Germany, Finland, Ecad.
+
+One paragraph is devoted to manually checked some stations, either both at the same location or with the same name.
+For data sets that needed to be cropped (alps german and ecad ones), two files exist: 'xxx_FULL' (full one) and 'xxx' (cropped one), both for the annual maxima and the shapefile. Indeed, annual maxima data frames and shapefiles require the same dimension in order to relate each serie to its station.
+---
+
+## Library
+
+```{r, include=FALSE}
+
+library(plyr)
+library(tidyverse)
+library(tidyr)
+library(dplyr)
+library(ncdf4)
+library(rgdal)
+library(sf)
+library(readODS)
+
+```
+
+## Loading files
+
+```{r, include=FALSE}
+
+# annual maxima
+ger_max <- get(load(file=file.path("obs", "Allemagne", "df_ger_year.RData")))
+alp_max <- get(load(file=file.path("obs", "Alpes", "df_alp_year.RData")))
+fin_max <- get(load(file.path("obs", "Finland", "df_fin_year.RData")))
+eur_max <- get(load(file.path("obs", "Ecad", "df_ecad_year.RData"))) # after intersection
+  
+# shapefiles
+ger_sf <- st_read(file.path("obs", "Allemagne", "ger_sf_nut.shp"))
+alp_sf <- st_read(file.path("obs", "Alpes", "alp_sf_nut.shp"))
+fin_sf <- st_read(file.path("obs", "Finland", "fin_sf_nut.shp"))
+eur_sf <- st_read(file.path("obs", "Ecad", "ecad_sf.shp")) 
+
+# NUTS3
+shp_nut3 <- st_read(file.path("NUTS","NUTS3_3857.shp"))
+
+```
+
+## Data frame with dates as colnames
+
+We bind rows of annual maximum files.
+
+```{r, include=FALSE}
+
+# yearly max of alp-ger-fin 
+obs_max=rbind.fill(alp_max, ger_max, fin_max)
+save(obs_max, file=file.path("obs", "obs_maxAGF.RData"))
+
+# yearly max of alp-ger-fin-ecad
+obs_max=rbind.fill(alp_max, ger_max, fin_max, eur_max)
+save(obs_max, file=file.path("obs", "obs_max.RData"))
+
+```
+
+## Point shapefile with NUTS3 attribute
+We bind rows of shapefiles.
+
+```{r, include=FALSE}
+
+obs_sf_nut <- rbind(alp_sf, ger_sf, fin_sf %>% select(-stat_num))
+    
+st_write(obs_sf_nut, file.path("obs", "obs_sf_nutAGF.shp"), delete_layer = TRUE)
+
+# shp max of alp-ger-fin-ecad set
+obs_sf_nut <- rbind(alp_sf, ger_sf, fin_sf %>% select(-stat_num), eur_sf %>% select(-stat_id) %>% rename('stat_id'=stat_name))
+    
+st_write(obs_sf_nut, file.path("obs", "obs_sf_nut.shp"), delete_layer = TRUE)
+
+```
+
+## REMOVING DUPLICATES FROM EACH DATA SET ##
+We look for duplicate stations:
+- within Alp set (manual check within German set showed no duplicate)
+- between Alp and German set 
+- between Ecad and Alp-German-Finland set
+
+```{r, include=FALSE, echo=FALSE}
+
+#-------------------------------------------------------------
+#### CHECKING ALPS ####
+# We look for stations with identical location, by buidling a 
+# buffer of the shapefile.
+#-------------------------------------------------------------
+
+alp_sf <- st_read(file.path("obs", "Alpes", "alp_sf_nutFULL.shp"))
+alp_maxFULL <- get(load(file=file.path("obs", "Alpes", "df_alp_yearFULL.RData")))
+
+# build buffer to compute intersections
+# alp_buff200 <- st_buffer(alp_sf, dist=200)
+# st_write(alp_buff200, file.path("obs", "Alpes", "alpBUFF200.shp"), delete_layer = TRUE)
+# 
+# alp_check_identical <- st_contains(alp_sf, alp_sf)
+# alp_check_buf <- st_contains(alp_buff200, alp_buff200)
+# #
+# # # df summarizing intersections
+# df_stat = matrix(ncol=3)
+# for (i in c(1:2893)){
+#   vect_stat <- rep(NA,3)
+#   stat_with <- alp_sf$stat_id[alp_check_buf[[i]]]
+#     if(length(stat_with)>=2){
+#       id_fill <- which(!is.na(stat_with))
+#       vect_stat[id_fill]<-stat_with
+#       df_stat <- rbind(df_stat, t(as.matrix(vect_stat)))
+#     }
+# }
+
+# conclusion: removing stations and saving file
+ remove_statname <- c('Zernez_CH_METEOSWISS', 'Zervreila_CH_METEOSWISS', 'Val_d_isere_jos', 'Val_d_isere', 'Ulrichen_CH_METEOSWISS', 'Tignes_sapc', 'St_christophe_38375400', 'St_Moritz_CH_METEOSWISS', 'Maljasset', 'Scuol_CH_METEOSWISS', 'Schwagalp_CH_METEOSWISS', 'San_Bernardino', 'Punt_la_Drossa', 'Pelvoux_st_antoine', 'Murren_CH_METEOSWISS', 'Passo_del_Bernina', 'Megeve_auxi', 'Les_portes_en_valgaudemar', 'Le_tour', 'Diga_Goillet', 'Diga_Cignanaz', 'Isola', 'Innerferrera_CH_METEOSWISS', 'Grimsel_Hospiz_CH_METEOSWISS', 'Gsteig_Gstaad', 'Gadmen_CH_METEOSWISS', 'Fionnay_CH_METEOSWISS', 'Ceillac', 'Braunwald_CH_METEOSWISS', 'Bourg_St_Pierre_CH_METEOSWISS', 'Bessans', 'Adelboden_CH_METEOSWISS')
+
+stat_row <- which(alp_sf$stat_id %in%remove_statname)
+
+# # filtering out
+alp_sfCROP <- alp_sf[-stat_row,]
+alp_maxCROP <- alp_maxFULL[-stat_row,] # stations timeseries are also removed
+
+st_write(alp_sfCROP, file.path("obs", "Alpes", "alp_sf_nut.shp"), delete_layer = TRUE)
+save(alp_maxCROP, file = file.path("obs", "Alpes", paste0("df_alp_year.RData")))
+
+# # #-------------------------------------------------------------
+# # #### checking GERMAN vs ALP SET ####
+# In a similar way to above, we look for duplicate stations by
+# building a buffer around one shapefile.
+# # #-------------------------------------------------------------
+
+ger_sf_full <- st_read(file.path("obs", "Allemagne", "ger_sf_nutFULL.shp"))
+alp_sf <- st_read(file.path("obs", "Alpes", "alp_sf_nut.shp"))
+
+alp_buff200 <- st_buffer(alp_sf, dist=200)
+contain_list <- st_contains(alp_buff200, ger_sf_full)
+german_dup <- unlist(contain_list)
+
+# filter out shapefile
+ger_crop <- ger_sf_full[-german_dup,]
+st_write(ger_crop, file.path("obs", "Allemagne", "ger_sf_nut.shp"), delete_layer = TRUE)
+
+# filter out yearly max
+ger_max <- get(load(file.path("obs", "Allemagne", "df_ger_yearFULL.RData")))
+ger_maxcrop <- ger_max[-german_dup,]
+save(ger_maxcrop, file=file.path("obs", "Allemagne", "df_ger_year.RData"))
+
+# # #-------------------------------------------------------------
+# # #### CHECKING ECAD vs ALPGERFIN SET ####
+# We have merged alps - german - finland set in order to remove 
+# the stations from ecad that were already in the set.
+# # #-------------------------------------------------------------
+
+# # Alps data
+AGF_sf <- st_read(file.path("obs", "obs_sf_nutAGF.shp"))
+# # buidling buffer at 200m
+AGF_buf200 <- st_buffer(AGF_sf, dist=200)
+
+# # EcAD data
+ecad_sfFULL <- st_read(file.path("obs", "Ecad", "ecad_sf_nut_full.shp"))
+ecad_yearFULL <- get(load(file.path("obs", "Ecad", "eur_yearFULL.RData")))
+# 
+# # intersection
+intersect <- st_contains(AGF_buf200, ecad_sfFULL)
+# 
+df_stat = matrix(ncol=3)
+for (i in c(1:7824)){
+  vect_stat <- rep(NA,3)
+  stat_with <- ecad_sfFULL$stat_name[intersect[[i]]]
+    if(length(stat_with)>=1){ ### two data sets, so only one station interesected!
+      id_fill <- which(!is.na(stat_with))
+      vect_stat[id_fill]<-stat_with
+      df_stat <- rbind(df_stat, t(as.matrix(vect_stat)))
+    }
+}
+# 
+# # removing stations from ecad: WARNING some
+stat1 <- unique(as.vector(df_stat[which(!is.na(df_stat[,1])),1]))
+stat2 <- unique(as.vector(df_stat[which(!is.na(df_stat[,2])),2]))
+stat_row <- which(ecad_sfFULL$stat_name %in% stat1)
+# 
+new_ecadsf <- ecad_sfFULL[-stat_row, ]
+new_ecadyear <- ecad_yearFULL[-stat_row, ]
+
+st_write(new_ecadsf, file.path("obs", "Ecad", "ecad_sf.shp"), delete_layer = TRUE)
+save(new_ecadyear, file=file.path("obs", "Ecad", "df_ecad_year.RData"))
+
+```
+
+

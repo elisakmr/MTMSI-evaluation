@@ -1,0 +1,166 @@
+---
+title: "Extractiing german data2"
+output: html_document
+date: "2025-03-20"
+---
+The initial csv file contains daily values of snow depth ('snow_depth' variable, in cm) from 1961.01.01 to 2015.12.31 ('date' variable) for stations identified with 'StCode'. 
+
+(1) We extract those daily values. Then we compute the annual maxima for each station, on the hydrological year from Y-1/08/01 to Y/07/31, for stations with less than 10% missing values on 'likely maxima period' from Y-1/11/01 to Y/04/30.
+
+(2) We compute a shapefile of the stations, using the coordinates and station names from the ancillary 'metadata.csv' file, and the NUTS-3 shapefile attributes.
+---
+
+## Library
+
+```{r, include=FALSE}
+
+library(plyr)
+library(tidyverse)
+library(tidyr)
+library(dplyr)
+library(ncdf4)
+library(rgdal)
+library(sf)
+library(readODS)
+library(foreach)
+library(parallel)
+library(doParallel)
+
+```
+
+## Parameters
+
+```{r, include=FALSE}
+
+year_int=c(1962:2015)
+seuil_saison=0.1
+
+
+```
+
+## Loading files
+As the initial csv file is very large, we have extracted the data from 1000 by 1000 stations (saved as 'daily_all1.RData' for the 1000 first stations, etc...)
+
+```{r, include=FALSE}
+
+csv_ger <- read.csv(file=file.path("obs", "Allemagne", "all_time_snow_data.csv"))
+csv_ger$snow_depth <- csv_ger$snow_depth/100 # converting to meters
+ger_id <- unique(csv_ger$StCode) # station ids
+
+date_nom=seq(as.Date("1950-01-01"),as.Date("2020-12-31"),by="day")
+df_date <- data.frame(matrix(ncol = length(date_nom), nrow = 1))
+colnames(df_date)=date_nom
+
+tictoc::tic()
+stat_full <- foreach(station = ger_id[1:1000], .combine = 'rbind', .packages = 'dplyr') %do% {
+  
+  csv_stat = csv_ger %>% filter(StCode==station) 
+  stat_lon = as.data.frame(t(csv_stat %>% select(snow_depth)))
+  colnames(stat_lon) <- csv_stat$date
+  rbind.fill(df_date, stat_lon) %>% slice(2)
+  
+} 
+
+tictoc::toc()
+
+save(stat_full, file = file.path("obs", "Allemagne", "daily_all1.RData"))
+
+```
+
+## From daily to yearly max
+
+```{r, include=FALSE}
+
+obs_df_date1 <- get(load(file.path("obs", "Allemagne","daily_all1.RData")))
+obs_df_date2 <- get(load(file.path("obs", "Allemagne", "daily_all2.RData")))
+obs_df_date3 <- get(load(file.path("obs", "Allemagne", "daily_all3.RData")))
+obs_df_date4 <- get(load(file.path("obs", "Allemagne", "daily_all4.RData")))
+obs_df_date5 <- get(load(file.path("obs", "Allemagne", "daily_all5.RData")))
+
+obs_df_date <- rbind(obs_df_date1,obs_df_date2,obs_df_date3,obs_df_date4,obs_df_date5)
+
+obs_data_year <- list()
+i=0
+
+### loop on year ###
+for (y in year_int){
+
+  i=i+1
+
+  ################## FILTERING ON NA RATE ON WINTER SEASON (OCTOBER->APRIL) ##################
+
+    # filtering winter season
+  sel_annee <- date_filt(obs_df_date, month1=c(11:12), month2 = c(1:4), annee = y-1) # saison oct/y > april/y+1
+  saison_na <- c(sel_annee[[1]],sel_annee[[2]])
+
+    # we save indices of stations with NA exceeding threshold
+  tx_na <- apply(obs_df_date[,saison_na], 1, function(x) length(which(is.na(x)))/length(saison_na)) # vector of na rate per station
+  tx_na[which(tx_na>=seuil_saison)] <- NA # values above thresholds are set as NA
+
+  ################## COMPUTING MAX ON FULL YEAR (AUGUST year-1 -> JULY year+1) ##################
+
+    # filtering year centered on winter y-1 > y
+  sel_annee2 <- date_filt(obs_df_date, month1=c(8:12), month2 = c(1:7), annee = y-1)
+  saison_max <- c(sel_annee2[[1]],sel_annee2[[2]])
+
+    # allocating NA to timeseries full of NA OR with NA rate too high
+  obs_max <- rep(NA,dim(obs_df_date)[1]) # initialyzing vector of obs max
+  finite_value <- which(apply(obs_df_date[,saison_max],1,function(x) length(which(is.na(x)))<length(x))) # indices of series with at least one value
+  obs_max[finite_value] <- apply(obs_df_date[finite_value,saison_max],1,max,na.rm=TRUE) # replacing original NA with max where possible (at least one value)
+  obs_max[is.na(tx_na)]<-NA # replacing with NA where NA rate was above 0.1
+
+  obs_data_year[[i]]<-obs_max
+
+}
+
+ger_max <-  as.data.frame(do.call(cbind, obs_data_year))
+colnames(ger_max) <- year_int
+save(ger_max, file = file.path("obs", "Allemagne", "df_ger_yearFULL.RData"))
+
+```
+
+## Point shapefile with NUTS3 attribute
+
+```{r, include=FALSE}
+
+shp_nut3 <- st_read(file.path("NUTS","NUTS3_4326.shp"))
+meta_ger_old <- read.csv(file=file.path("obs", "Allemagne", "Metadata.csv"))
+meta_ger <- read.csv(file=file.path("obs", "Allemagne", "metadata_2.csv"))
+
+  # extract data from df
+ger_lon <- meta_ger$lon
+ger_lat <- meta_ger$lat
+ger_ZS <- meta_ger$elevation
+  
+  # build matrix
+ngrids = length(ger_lat)
+ger_matrix <- matrix(0, nrow = ngrids, ncol = 3) # col: sd, lat, lon, alt
+ger_matrix[,1] <- ger_lat
+ger_matrix[,2] <- ger_lon
+ger_matrix[,3] <- ger_ZS
+      
+  # convert matrix into sf
+ger_shp <- data.frame(ger_matrix)
+colnames(ger_shp) <- c("lat","lon","alt")
+ger_shp <- ger_shp %>% mutate(station=meta_ger$StCode)
+coordinates(ger_shp) <- ~lon+lat
+proj4string(ger_shp) <- CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0")
+ger_sf <- st_as_sf(ger_shp) # we transform spatial data frame into shapefile, which is plotting friendly
+ger_sf_nut <- st_join(ger_sf, shp_nut3, join = st_nearest_feature) %>% select(-station) # joining with nut3 id
+ger_sf_nut$stat_id = meta_ger$StCode
+  
+# reorder like the daily data frame
+  # station order in daily and yearly data
+csv_ger <- read.csv(file=file.path("obs", "Allemagne", "all_time_snow_data.csv"))
+ger_id <- unique(csv_ger$StCode)
+ger_id_corrige <- as.numeric(sub('.', '', sub('.', '', ger_id)))
+
+  # re order shapefile
+ligne_stat <- sapply(ger_id_corrige, function(x) which(x == meta_ger$StCode))
+ger_sf_nut2 <- ger_sf_nut[unlist(ligne_stat),] 
+
+st_write(ger_sf_nut2, file.path("obs","Allemagne", "ger_sf_nutFULL.shp"), delete_layer = TRUE)
+
+```
+
+

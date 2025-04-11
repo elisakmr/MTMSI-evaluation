@@ -1,0 +1,278 @@
+---
+title: "obs_ecad"
+output: html_document
+date: "2024-09-10"
+---
+- Each station snow depth daily values are stored in a text file. The station identifier is stored in 'STATID', the mean daily snow depth in 'SD', and the quality code related to the measure is stored in 'Q_SD'. The quality code is either '0' for a valid measure, '1' for a suspicious measure, or '9' for a missing measure. We kept only measures tagged as 'valid'.
+- Metadata is called 'stations_sd.txt' and enables shapefile to be built.
+
+(1) We compute a shapefile of the stations, using the coordinates and station names from the ancillary 'stations_sd.txt' file, and the NUTS-3 shapefile attributes. The metadata contains info about all stations, yet some stations were removed after duplicate analysis. So we remove some rows of the shapefile.
+
+(2) We extract the daily values of snow depth. 
+
+(3) Then we compute the annual maxima for each station, on the hydrological year from Y-1/08/01 to Y/07/31, for stations with less than 10% missing values on 'likely maxima period' from Y-1/11/01 to Y/04/30.
+
+---
+
+## Library
+
+```{r, include=FALSE}
+
+library(plyr)
+library(tidyverse)
+library(tidyr)
+library(dplyr)
+library(sf)
+library(foreach)
+library(parallel)
+library(doParallel)
+library(tictoc)
+library(measurements)
+library(sp)
+
+```
+
+## STATION SHAPEFILE ##
+
+Made from station table downloaded at the same time with data
+
+```{r, include=FALSE}
+
+station_txt <- read.delim(file.path("obs", "Ecad", "stations_sd.txt"), skip=17, header=TRUE, sep=",")
+
+shp_nut3 <- st_read(file.path("NUTS","NUTS3_4326.shp"))
+
+# from DMS to decimal degrees
+  # LATITUDE
+lat_int <- sapply(station_txt$LAT, function(x) str_replace_all(x,"[^[:alnum:]]", " "))
+lat_int2 <- gsub('^.', '', lat_int)
+lat_dec <- as.numeric(conv_unit(lat_int2, from = "deg_min_sec", to = "dec_deg"))
+
+  # LONGITUDE
+lon_int <- sapply(station_txt$LON, function(x) str_replace_all(x,"[^[:alnum:]]", " "))
+lon_int2 <- gsub('^.', '', lon_int)
+lon_dec <- as.numeric(conv_unit(lon_int2, from = "deg_min_sec", to = "dec_deg"))
+
+# build matrix
+nstat = dim(station_txt)[1]
+stat_matrix <- matrix(0, nrow = nstat, ncol = 3) # col: lat, lon, alt
+stat_matrix[,1] <- lat_dec
+stat_matrix[,2] <- lon_dec
+stat_matrix[,3] <- station_txt$HGHT
+
+# convert matrix into sf
+stat_shp <- data.frame(stat_matrix)
+colnames(stat_shp) <- c("lat","lon","alt")
+coordinates(stat_shp) <- ~lon+lat
+proj4string(stat_shp) <- CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0") 
+
+stat_sf <- st_as_sf(stat_shp) # we transform spatial data frame into shapefile, which is plotting friendly
+stat_sf_nut <- st_join(stat_sf, shp_nut3, join = st_nearest_feature) # joining with nut3 id
+stat_sf_nut$stat_id <- station_txt$STAID
+stat_sf_nut$stat_name <- station_txt$STANAME
+
+within_test <- st_within(stat_sf_nut, shp_nut3) # keeping only stations within the study area
+is.na(within_test) <- lengths(within_test) == 0
+
+stat_sf_nut$nuts_id <- shp_nut3$nuts_id[unlist(within_test)]
+stat_sf_nut$nuts_name <- shp_nut3$nuts_name[unlist(within_test)]
+
+stat_eur_nut <- stat_sf_nut %>% na.omit() # stations within mtmsi NUTS geometries
+stat_world_nut <- stat_sf_nut # total stations wherever they are
+
+#---------------------------------------
+# restricting the shapefile to the stations kept
+#---------------------------------------
+txt_name=list.files(file.path("obs", "Ecad", "ECA_nonblend_sd"), "SD*", full.names = T)
+
+stat_id <- vector()
+for (i in c(1: length(txt_name))){
+  sd_txt <- read.delim(txt_name[i], skip=19, header=TRUE, sep=",")
+  stat_id[i] <- sd_txt$STAID[1] 
+}
+
+length(which(stat_eur_nut$stat_id %in% stat_id))
+stat_eur_nut2 <- stat_eur_nut[which(stat_eur_nut$stat_id %in% stat_id),]
+
+st_write(stat_eur_nut2, file.path("obs","Ecad", "ecad_sf_nut_full.shp"), delete_layer = TRUE) # 9781 stations
+st_write(stat_world_nut, file.path("obs","Ecad", "ecad_sf_nut_world.shp"), delete_layer = TRUE) # 10412 stations
+
+```
+
+## EXTRACT DAILY DATA ##
+
+All station files into one of daily values 
+
+```{r, include=FALSE}
+
+## station file names ##
+txt_name=list.files(file.path("obs", "Ecad", "ECA_nonblend_sd"), "SD*", full.names = T)
+
+## dates we want to extract ##
+date_nom=seq(as.Date("1961-01-01"),as.Date("2015-12-30"),by="day")
+date_nom_stick=gsub('-', '', date_nom)
+
+## looping on all station files ##
+no_core=detectCores() - 1
+cl <- makeCluster(no_core) # setting up number of cores
+registerDoParallel(cl) # parallelizing on them
+
+tic()
+resultat <- foreach(i = 1:10318, .packages=c("tidyr", "dplyr")) %dopar%  { # 10318 stations in total
+  
+  gc()
+  vec_full <- rep(NA,length(date_nom))
+
+  sd_txt <- read.delim(txt_name[i], skip=19, header=TRUE, sep=",") 
+  sd_filt <- sd_txt %>% filter(Q_SD==0)
+  
+  if (nrow(sd_filt) >= 1){ # if there is at least on valid measure
+    sd_int <- sd_filt %>%  select(DATE, STAID, SD) %>% pivot_wider(names_from = 'DATE', values_from = "SD")
+  }else {
+    sd_filt$SD <- NA
+    sd_int <- sd_filt %>%  select(DATE, STAID, SD) %>% pivot_wider(names_from = 'DATE', values_from = "SD")
+  }
+  
+  id_timeserie <- which(date_nom_stick %in% colnames(sd_int))
+  id_time_station <- which(colnames(sd_int) %in% date_nom_stick)
+  
+  vec_full[id_timeserie] <- as.numeric(sd_int[,id_time_station])/100
+  append(vec_full, sd_filt$STAID[1], after=20087) # total amount of days in the time window we set (1961-2015)
+
+}
+
+toc()
+stopCluster(cl) 
+
+obs_eur_day=as.data.frame(do.call(rbind, resultat))
+colnames(obs_eur_day) <- c(as.character(date_nom), "station")
+
+# changing order to be alike shapefile
+sf_eur <- st_read(file.path("obs", "Ecad", "ecad_sf_nut_full.shp"))
+ligne_stat <- sapply(sf_eur$stat_id, function(x) which(x == obs_eur_day$station))
+
+obs_eur_day2 <- obs_eur_day[unlist(ligne_stat),]
+save(obs_eur_day2, file = file.path("obs", "Ecad", "daily_eurFULL.RData"))
+
+```
+
+## From daily to yearly max 
+
+```{r, include=FALSE}
+
+seuil_saison=0.1 
+year_int=c(1962:2015) 
+
+obs_eur_day <- get(load(file.path("obs", "Ecad", "daily_eurFULL.RData"))) %>% select(-'station') 
+
+obs_data_year <- list()
+i=0
+
+for (y in year_int){
+
+  i=i+1
+
+  ################## FILTERING ON NA RATE ON WINTER SEASON (NOVEMBER->APRIL) ##################
+
+    # filtering winter season
+  sel_annee <- date_filt(obs_eur_day, month1=c(11:12), month2 = c(1:4), annee = y-1) 
+  saison_na <- c(sel_annee[[1]],sel_annee[[2]])
+
+    # we save indices of stations with NA exceeding threshold
+  tx_na <- apply(obs_eur_day[,saison_na], 1, function(x) length(which(is.na(x)))/length(saison_na)) # vector of na rate per station
+  tx_na[which(tx_na>=seuil_saison)] <- NA # values above thresholds are set as NA
+
+  ################## COMPUTING MAX ON FULL YEAR (AUGUST year-1 -> JULY year+1) ##################
+
+    # filtering year centered on winter y-1 > y
+  sel_annee2 <- date_filt(obs_eur_day, month1=c(8:12), month2 = c(1:7), annee = y-1)
+  saison_max <- c(sel_annee2[[1]],sel_annee2[[2]])
+  
+    # allocating NA to timeseries full of NA OR with NA rate too high
+  obs_max <- rep(NA,dim(obs_eur_day)[1]) # initialyzing vector of obs max
+  finite_value <- which(apply(obs_eur_day[,saison_max],1,function(x) length(which(is.na(x)))<length(x))) 
+  obs_max[finite_value] <- apply(obs_eur_day[finite_value,saison_max],1,max,na.rm=TRUE) 
+  obs_max[is.na(tx_na)]<-NA 
+
+  obs_data_year[[i]]<-obs_max
+
+}
+
+eur_max <-  as.data.frame(do.call(cbind, obs_data_year))
+colnames(eur_max) <- year_int
+save(eur_max, file = file.path("obs", "Ecad", "eur_yearFULL.RData"))
+
+```
+
+## Timeseries
+Code for displaying the timeseries of daily values of a specific station.
+
+```{r, include=FALSE}
+
+# obs_eur_day <- get(load(file.path("obs", "Europe", "daily_eur.RData")))
+# 
+# #station_name <- get(load(file.path("obs", "Europe", "station_eur.RData")))
+# nstat = dim(obs_eur_day)[1]
+# ndate = dim(obs_eur_day)[2]
+# 
+# # months of each year constituting full time span
+# month1=seq(8,12,1)
+# month2=seq(1,7,1)
+# 
+# ## PARAMETERS ##
+# unique(obs_eur_day$station)
+# filt_stat= 24626
+# annee=2010
+# 
+#       ## EXTRACT STATION ##
+# 
+# # df ggplot friendly
+# df_day_long = obs_eur_day %>% filter(station==filt_stat) %>% 
+#   pivot_longer(
+#     cols = colnames(obs_eur_day)[1]:colnames(obs_eur_day)[21549], 
+#     names_to = "date",
+#     values_to = "sd")
+# df_day_long$sd<-as.numeric(df_day_long$sd)
+# 
+#        ## EXTRACT YEAR ## 
+# 
+# row_year1 <- vector()
+# row_year2 <- vector()
+# for(i in c(1:dim(df_day_long)[1])){
+#   year1=as.numeric(str_split(df_day_long$date[i], "-")[[1]][1])
+#   mois1=as.numeric(str_split(df_day_long$date[i], "-")[[1]][2])
+#   if (year1==annee-1 & mois1 %in% month1){ ### YEAR FILTER ###
+#     row_year1[i] <- i
+#     }
+#   else if (year1==annee & mois1 %in% month2){
+#     row_year2[i] <- i
+#     }
+# }
+# 
+# # filtering on selected year to get column index corresponding to selected year
+# select_annee1 <- which(!is.na(row_year1))
+# select_annee2 <- which(!is.na(row_year2))
+# 
+# # extracting month from date
+# vect_mois1 <- unlist(lapply(df_day_long$date[select_annee1], function(x) unlist(str_split(x, "-"))[2]))
+# vect_mois2 <- unlist(lapply(df_day_long$date[select_annee2], function(x) unlist(str_split(x, "-"))[2]))
+# 
+# # data frame merging filtered data
+# df1 <- data.frame(snowdep=as.numeric(df_day_long$sd[select_annee1]), 
+#                       jour=as.Date(df_day_long$date[select_annee1]), mois=as.numeric(vect_mois1))
+# 
+# df2 <- data.frame(snowdep=as.numeric(df_day_long$sd[select_annee2]), 
+#                       jour=as.Date(df_day_long$date[select_annee2]), mois=as.numeric(vect_mois2))
+# 
+# df_dailyserie <- rbind(df1,df2)
+# 
+# ggplot(df_dailyserie) +
+#   geom_line(aes(x=jour,y=snowdep), color="darkblue", linewidth=0.7)+
+#   scale_x_date(date_breaks = 'month', date_labels = c('jul','aug','sept','oct','nov','dec','jan','feb','mar','apr','may','jun'))+
+#   labs(y="Snowdepth (cm)",x="", title=paste0("Daily snow depth (cm) observed at ",filt_stat," station in ",annee-1,"-",annee))+
+#   scale_y_continuous(breaks = scales::pretty_breaks(n = 12))+
+#   #coord_cartesian(ylim = c(0,100))+
+#   theme_bw()
+
+```
+
