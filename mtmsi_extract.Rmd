@@ -1,0 +1,108 @@
+---
+title: "Extraction"
+output: html_document
+date: "2023-08-01"
+---
+The MTMSI reanalysis data is stored in a netcdf, with annual snow depth maxima that have been calculated on the hydrological year from Y-1/08/01 to Y/07/31. Metadata is stored aside, with gathers coordinates of the NUTS-3 barycenters and the altitudes of the timeseries. 
+If there was no snow during the hydrological year of one NUTS/elevation pair, snow depth maxima is set as NA.
+
+We extract 
+- MTMSI reanalysis snow depth maxima in a dataframe with dimensions NUTS/elevation*year
+- a point shapefile with NUTS-3 & elevation identification for each series, with point coordinates centered on NUTS-3 barycenter. 
+
+---
+
+## Library
+
+```{r, include=FALSE}
+
+library(plyr)
+library(tidyverse)
+library(tidyr)
+library(dplyr)
+library(ncdf4)
+library(rgdal)
+library(ggmap)
+library(sf)
+
+```
+
+## Parameters
+
+```{r, include=FALSE}
+
+indic <- "max-sd-NS-year"
+
+```
+
+## Loading files
+
+We load the NUTS3 shapefile, and netcdf of obs/mtmsi data
+
+```{r, include=FALSE}
+
+# MTMSI
+uerra_nc <- nc_open(file=file.path("mtmsi_hist","netcdf", paste0(indic,"_UERRA.nc")))
+nc_coord <- nc_open(file=file.path("mtmsi_hist", "netcdf", "MTMSI_lat_lon_ZS.nc"))
+#uerra_corres <- read_csv(file.path("mtmsi_hist","LON_LAT_ZS_UERRA_EUROPE_Uerra_coord.csv"), show_col_types = FALSE)
+
+# NUTS
+shp_nut3 <- st_read(file.path("NUTS", "NUTS3_4326.shp"))
+
+```
+
+## Data frame with dates as colnames
+We extract the annual maxima of snow depth as a dataframe.
+
+```{r, include=FALSE}
+
+# SNOW DEPTH
+sdepth <- ncvar_get(uerra_nc, indic)
+dim(sdepth)
+
+# DATE
+temps <- ncvar_get(uerra_nc, "time")
+years <- lubridate::as_date(temps, origin = '1949-12-1')
+
+# DATA FRAME 
+df_date <- as.data.frame(sdepth)
+colnames(df_date) <- years
+
+save(df_date, file=file.path(dir_data, paste0(indic,"_df_date.RData")))
+
+```
+
+## Polyogon shapefile with NUTS3 attributes
+We build a shapefile with NUTS-3 and elevation attribute of each MTMSI dataframe row. For this purpose, we extract the MTMSI coordinates from the metadata, and on the other side we compute the centroids of the NUTS-3 shapefile (build in 'nuts_extract' code). Then, we merge the information with 'st_nearest' function.
+
+```{r, include=FALSE}
+
+# extract data from netcdf
+hist_lon <- ncvar_get(nc_coord,'LON')
+hist_lat <- ncvar_get(nc_coord,'LAT')
+hist_zs <- ncvar_get(nc_coord,'ZS')
+
+# build matrix
+ngrids = length(hist_lon)
+hist_matrix <- matrix(0, nrow = ngrids, ncol = 3) # col: lat, lon, alt
+hist_matrix[,1] <- hist_lat
+hist_matrix[,2] <- hist_lon
+hist_matrix[,3] <- hist_zs
+    
+# convert matrix into sf
+hist_shp <- data.frame(hist_matrix)
+colnames(hist_shp) <- c("lat","lon","alt")  
+coordinates(hist_shp) <- ~lon+lat
+proj4string(hist_shp) <- CRS("+init=epsg:4326") #CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0")
+hist_sf <- st_as_sf(hist_shp) # we transform spatial data frame into shapefile, which is sf package friendly
+
+# get NUTS barycenter shp for easy NUTS identification (few NUTS where no data: turkey + domtom)
+shp_nuts_bary <- st_centroid(shp_nut3)
+
+# joining the files by merging the nearest values
+hist_sf_nut <- st_join(hist_sf, shp_nuts_bary, join = st_nearest_feature) # intersecting with nuts3
+
+st_write(hist_sf_nut, file.path(dir_uerra, paste0(indic,"_sf_nut.shp")), delete_layer = TRUE)
+
+```
+

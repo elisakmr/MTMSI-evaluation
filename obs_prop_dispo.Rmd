@@ -62,7 +62,7 @@ ggplot(df_plot)+
         axis.text.x=element_text(size=8),
         legend.position = "bottom")
 
-ggsave(file=file.path("obs", paste0("year_available.jpg")), dpi = 300, width = 8, height = 5.5)
+ggsave(file=file.path("plot", paste0("year_available.jpg")), dpi = 300, width = 8, height = 5.5)
 
 ```
 
