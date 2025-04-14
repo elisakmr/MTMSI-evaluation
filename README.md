@@ -4,12 +4,12 @@ Codes are describes in the order that the user should follow too.
 Each file has first a "packages" section that should be run, and sometimes also a "parameters" section that can be modified by the user.
 
 ## Extraction codes
-  # 1.  nuts_extract
-  The code enables to build 3 shapefiles with increasing details about the NUTS-3, that are required for the majority of the remaining codes.
-  
-  # 2.  MTMSI_extract
+  # 1.  MTMSI_extract
   The code enables the extraction of daily snow depth values from a netcdf file, along with the metadata of each series of values. 
   Daily maxima are also used to compute the annual maxima.
+  
+  # 2.  nuts_extract
+  The code enables to build 3 shapefiles with increasing details about the NUTS-3, that are required for the majority of the remaining codes.
 
   # 3.  map_elevation
   The code enables to build the NUTS-3 mean elevation and the NUTS type maps side by side.
