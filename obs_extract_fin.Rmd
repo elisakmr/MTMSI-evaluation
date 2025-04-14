@@ -42,9 +42,6 @@ year_int=c(1962:2015)
 # list of obs files
 csv_name_fin=list.files(file.path("obs", "Finland"), "*.ods", full.names = T)
 
-# NUTS3
-shp_nut3 <- st_read(file.path("NUTS","NUTS3_3857.shp"))
-
 ```
 
 ## Extract daily max 
@@ -142,6 +139,8 @@ save(fin_max, file = file.path("obs", "Finland", "df_fin_year.RData"))
 ## Point shapefile with NUTS3 attribute
 
 ```{r, include=FALSE}
+
+shp_nut3 <- st_read(file.path("NUTS","NUTS3_4326.shp"))
 
 coord_csv <- read_ods(file.path("obs", "Finland", "metadata", "FMI_Stations_Coordinates.ods"))
 shp_matrix <- matrix(0, nrow = dim(coord_csv)[1], ncol = 3) 

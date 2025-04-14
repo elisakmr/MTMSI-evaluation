@@ -3,10 +3,12 @@ title: "Merging observation extracts"
 output: html_document
 date: "2024-06-07"
 ---
-We merge the in-situ data sets of annual maxima: European Alp, Germany, Finland, Ecad.
+We merge the in-situ data sets of annual maxima: European Alp, Germany, Finland, Ecad (annual max and shapefile - they require the same dimension in order to relate each serie to its station.)
+(1) We remove duplicates from the Alp and German sets (no duplicate in Finland). Initial sets (annual max and shapefiles) are called 'xxx_FULL'. The cropped ones have the suffix removed.
+(2) We merge Alps Germany and Finland sets.
+(3) We remove duplicate station from ECAD (the ones already in Alp-Germany-Finland set)
+(4) We merge all sets: Alps, Germany, Finaldn, Ecad
 
-One paragraph is devoted to manually checked some stations, either both at the same location or with the same name.
-For data sets that needed to be cropped (alps german and ecad ones), two files exist: 'xxx_FULL' (full one) and 'xxx' (cropped one), both for the annual maxima and the shapefile. Indeed, annual maxima data frames and shapefiles require the same dimension in order to relate each serie to its station.
 ---
 
 ## Library
@@ -24,60 +26,7 @@ library(readODS)
 
 ```
 
-## Loading files
-
-```{r, include=FALSE}
-
-# annual maxima
-ger_max <- get(load(file=file.path("obs", "Allemagne", "df_ger_year.RData")))
-alp_max <- get(load(file=file.path("obs", "Alpes", "df_alp_year.RData")))
-fin_max <- get(load(file.path("obs", "Finland", "df_fin_year.RData")))
-eur_max <- get(load(file.path("obs", "Ecad", "df_ecad_year.RData"))) # after intersection
-  
-# shapefiles
-ger_sf <- st_read(file.path("obs", "Allemagne", "ger_sf_nut.shp"))
-alp_sf <- st_read(file.path("obs", "Alpes", "alp_sf_nut.shp"))
-fin_sf <- st_read(file.path("obs", "Finland", "fin_sf_nut.shp"))
-eur_sf <- st_read(file.path("obs", "Ecad", "ecad_sf.shp")) 
-
-# NUTS3
-shp_nut3 <- st_read(file.path("NUTS","NUTS3_3857.shp"))
-
-```
-
-## Data frame with dates as colnames
-
-We bind rows of annual maximum files.
-
-```{r, include=FALSE}
-
-# yearly max of alp-ger-fin 
-obs_max=rbind.fill(alp_max, ger_max, fin_max)
-save(obs_max, file=file.path("obs", "obs_maxAGF.RData"))
-
-# yearly max of alp-ger-fin-ecad
-obs_max=rbind.fill(alp_max, ger_max, fin_max, eur_max)
-save(obs_max, file=file.path("obs", "obs_max.RData"))
-
-```
-
-## Point shapefile with NUTS3 attribute
-We bind rows of shapefiles.
-
-```{r, include=FALSE}
-
-obs_sf_nut <- rbind(alp_sf, ger_sf, fin_sf %>% select(-stat_num))
-    
-st_write(obs_sf_nut, file.path("obs", "obs_sf_nutAGF.shp"), delete_layer = TRUE)
-
-# shp max of alp-ger-fin-ecad set
-obs_sf_nut <- rbind(alp_sf, ger_sf, fin_sf %>% select(-stat_num), eur_sf %>% select(-stat_id) %>% rename('stat_id'=stat_name))
-    
-st_write(obs_sf_nut, file.path("obs", "obs_sf_nut.shp"), delete_layer = TRUE)
-
-```
-
-## REMOVING DUPLICATES FROM EACH DATA SET ##
+## REMOVING DUPLICATES from ALP & GERMAN sets 
 We look for duplicate stations:
 - within Alp set (manual check within German set showed no duplicate)
 - between Alp and German set 
@@ -147,14 +96,41 @@ ger_max <- get(load(file.path("obs", "Allemagne", "df_ger_yearFULL.RData")))
 ger_maxcrop <- ger_max[-german_dup,]
 save(ger_maxcrop, file=file.path("obs", "Allemagne", "df_ger_year.RData"))
 
-# # #-------------------------------------------------------------
-# # #### CHECKING ECAD vs ALPGERFIN SET ####
-# We have merged alps - german - finland set in order to remove 
-# the stations from ecad that were already in the set.
-# # #-------------------------------------------------------------
+```
+
+# MERGING ALP-GER-FIN set 
+We have merged alps - german - finland set in order to remove 
+the stations from ecad that were already in the set.
+
+```{r, include=FALSE, echo=FALSE}
+
+  # annual maxima
+ger_max <- get(load(file=file.path("obs", "Allemagne", "df_ger_year.RData")))
+alp_max <- get(load(file=file.path("obs", "Alpes", "df_alp_year.RData")))
+fin_max <- get(load(file.path("obs", "Finland", "df_fin_year.RData")))
+
+  # shapefiles
+ger_sf <- st_read(file.path("obs", "Allemagne", "ger_sf_nut.shp"))
+alp_sf <- st_read(file.path("obs", "Alpes", "alp_sf_nut.shp"))
+fin_sf <- st_read(file.path("obs", "Finland", "fin_sf_nut.shp"))
+
+  # merging max of alp-ger-fin 
+obs_max_AGF=rbind.fill(alp_max, ger_max, fin_max)
+save(obs_max_AGF, file=file.path("obs", "obs_maxAGF.RData"))
+
+  # merging sf of alp-ger-fin 
+obs_sf_AGF <- rbind(alp_sf, ger_sf, fin_sf %>% select(-stat_num))
+st_write(obs_sf_AGF, file.path("obs", "obs_sf_nutAGF.shp"), delete_layer = TRUE)
+
+```
+
+## REMOVING DUPLICATES from ECAD
+
+```{r, include=FALSE, echo=FALSE}
 
 # # Alps data
 AGF_sf <- st_read(file.path("obs", "obs_sf_nutAGF.shp"))
+
 # # buidling buffer at 200m
 AGF_buf200 <- st_buffer(AGF_sf, dist=200)
 
@@ -186,6 +162,30 @@ new_ecadyear <- ecad_yearFULL[-stat_row, ]
 
 st_write(new_ecadsf, file.path("obs", "Ecad", "ecad_sf.shp"), delete_layer = TRUE)
 save(new_ecadyear, file=file.path("obs", "Ecad", "df_ecad_year.RData"))
+
+```
+
+## MERGING ALL cropped SETS
+
+```{r, include=FALSE}
+
+# annual maxima
+ger_max <- get(load(file=file.path("obs", "Allemagne", "df_ger_year.RData")))
+alp_max <- get(load(file=file.path("obs", "Alpes", "df_alp_year.RData")))
+fin_max <- get(load(file.path("obs", "Finland", "df_fin_year.RData")))
+eur_max <- get(load(file.path("obs", "Ecad", "df_ecad_year.RData"))) # after intersection
+  
+obs_max=rbind.fill(alp_max, ger_max, fin_max, eur_max)
+save(obs_max, file=file.path("obs", "obs_max.RData"))
+
+# shapefiles
+ger_sf <- st_read(file.path("obs", "Allemagne", "ger_sf_nut.shp"))
+alp_sf <- st_read(file.path("obs", "Alpes", "alp_sf_nut.shp"))
+fin_sf <- st_read(file.path("obs", "Finland", "fin_sf_nut.shp"))
+eur_sf <- st_read(file.path("obs", "Ecad", "ecad_sf.shp")) 
+
+obs_sf_nut <- rbind(alp_sf, ger_sf, fin_sf %>% select(-stat_num), eur_sf %>% select(-stat_id) %>% rename('stat_id'=stat_name))
+st_write(obs_sf_nut, file.path("obs", "obs_sf_nut.shp"), delete_layer = TRUE)
 
 ```
 
