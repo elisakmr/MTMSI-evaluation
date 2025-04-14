@@ -40,7 +40,7 @@ year_int=c(1962:2015)
 ```{r, include=FALSE}
 
 # list of obs files
-csv_name_fin=list.files(file.path("obs", "Finland", "new"), "*.ods", full.names = T)
+csv_name_fin=list.files(file.path("obs", "Finland"), "*.ods", full.names = T)
 
 # NUTS3
 shp_nut3 <- st_read(file.path("NUTS","NUTS3_3857.shp"))

@@ -35,7 +35,6 @@ library(doParallel)
 year_int=c(1962:2015)
 seuil_saison=0.1
 
-
 ```
 
 ## Loading files
@@ -124,8 +123,7 @@ save(ger_max, file = file.path("obs", "Allemagne", "df_ger_yearFULL.RData"))
 ```{r, include=FALSE}
 
 shp_nut3 <- st_read(file.path("NUTS","NUTS3_4326.shp"))
-meta_ger_old <- read.csv(file=file.path("obs", "Allemagne", "Metadata.csv"))
-meta_ger <- read.csv(file=file.path("obs", "Allemagne", "metadata_2.csv"))
+meta_ger <- read.csv(file=file.path("obs", "Allemagne", "metadata.csv"))
 
   # extract data from df
 ger_lon <- meta_ger$lon
