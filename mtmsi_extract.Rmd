@@ -68,7 +68,7 @@ years <- lubridate::as_date(temps, origin = '1949-12-1')
 df_date <- as.data.frame(sdepth)
 colnames(df_date) <- years
 
-save(df_date, file=file.path(dir_data, paste0(indic,"_df_date.RData")))
+save(df_date, file=file.path("mtmsi_hist", paste0(indic,"_df_date.RData")))
 
 ```
 
@@ -102,7 +102,7 @@ shp_nuts_bary <- st_centroid(shp_nut3)
 # joining the files by merging the nearest values
 hist_sf_nut <- st_join(hist_sf, shp_nuts_bary, join = st_nearest_feature) # intersecting with nuts3
 
-st_write(hist_sf_nut, file.path(dir_uerra, paste0(indic,"_sf_nut.shp")), delete_layer = TRUE)
+st_write(hist_sf_nut, file.path("mtmsi_hist", paste0(indic,"_sf_nut.shp")), delete_layer = TRUE)
 
 ```
 
