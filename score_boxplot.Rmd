@@ -26,7 +26,7 @@ Choose the score to be plotted
 
 ```{r, include=FALSE}
 
-sel.score='intcormed' # one of rmse, mae, bias, cor, intcormed
+sel.score='cor' # one of rmse, mae, bias, cor, intcormed
 
 ```
 

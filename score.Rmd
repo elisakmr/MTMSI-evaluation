@@ -51,7 +51,7 @@ obs_sf_nut <- st_read(file.path("obs", "obs_sf_nut.shp"))
 obs_maxfull[12786,] <- NA # only 0 and NA causing score error
 obs_maxfull[which(obs_sf_nut$nuts_id=='HR034'),] <- NA # very high values at 300m
 obs_maxfull[which(obs_sf_nut$nuts_id=='HR037'),] <- NA # very high values at 200m
-obs_maxfull[which(obs_sf_nut$nuts_id=='HR04B'),] <- NA # very high values at 100m
+#obs_maxfull[which(obs_sf_nut$nuts_id=='HR04B'),] <- NA # very high values at 100m
 
 # MTMSI
 hist_nut <- st_read(file.path("mtmsi_hist",paste0(indic,"_sf_nut.shp"))) # dataframe with nuts correspondances

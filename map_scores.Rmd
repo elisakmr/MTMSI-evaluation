@@ -96,7 +96,7 @@ worldmap <- ne_countries(scale = 'medium', type = 'map_units',
 pKGE <- ggplot() +
   geom_sf(data=worldmap)+
   geom_sf(data=shp_kge, aes(fill = valeur), colour=NA)+
-  scale_fill_gradientn(colors=c("#CC3311", "white", "#009988"), values = rescale(c(-3,-0.4,1)),
+  scale_fill_gradientn(colors=c("#CC3311", "white", "#2e3d82"), values = rescale(c(-3,-0.4,1)), #colors=c("#CC3311", "white", "#009988")
                        name="KGE", limits=c(-3,1), breaks=c(-3,-2,-0.4,1),
                        guide = guide_colorbar(title.position="top", title.hjust=0.5, 
                                               barwidth = 10, barheight = 0.5))+
@@ -106,7 +106,7 @@ pKGE <- ggplot() +
         legend.position = "bottom",
         panel.background = element_rect(fill = "lightsteelblue2"))
 
-png(file.path("carte","mapKGE.jpg"), 
+png(file.path("carte","mapKGE_2e3d82.jpg"), 
     width = 10, height = 8, units = "in", res=300)
 pKGE
 dev.off()
