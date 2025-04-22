@@ -74,7 +74,7 @@ for (i in c(1:length(stat_names))){
   date_nom_obs = apply(csv_doc, 1, function(x) paste(x[2], x[3], x[4], sep="-")) # extracting obs dates
 
   snow_depth=csv_doc[which(!duplicated(date_nom_obs)),6]
-  snow_depth2=mutate_all(as.vector(snow_depth), function(x) as.numeric(x))/100
+  snow_depth2=mutate_all(as.vector(snow_depth), function(x) x/100)
   df_sd=data.frame(t(snow_depth2))
   colnames(df_sd)=date_nom_obs[!duplicated(date_nom_obs)]
   sd[[i]]=rbind.fill(df_date, df_sd) %>% slice(2) # the obs extracted is put into the "big" dataframe spanning the 1961-2015 period
