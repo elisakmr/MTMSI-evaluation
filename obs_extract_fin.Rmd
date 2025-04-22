@@ -69,6 +69,7 @@ for (i in c(1:length(stat_names))){
   csv_doc$Month <- sapply(csv_doc$Month, function(x) sprintf('%02d', x)) # setting correct month format
   csv_doc$Day <- sapply(csv_doc$Day, function(x) sprintf('%02d', x)) # setting correct day format
   csv_doc$Sd[which(csv_doc$Sd==-1)] <- rep(0, length(which(csv_doc$Sd==-1))) # setting '-1' (snow depth cm) to '0'
+  csv_doc$Sd <- as.numeric(csv_doc$Sd)
   
   date_nom_obs = apply(csv_doc, 1, function(x) paste(x[2], x[3], x[4], sep="-")) # extracting obs dates
 
