@@ -50,7 +50,7 @@ date_nom=seq(as.Date("1950-01-01"),as.Date("2020-12-31"),by="day")
 df_date <- data.frame(matrix(ncol = length(date_nom), nrow = 1))
 colnames(df_date)=date_nom
 
-tictoc::tic()
+# first 1000 stations
 stat_full <- foreach(station = ger_id[1:1000], .combine = 'rbind', .packages = 'dplyr') %do% {
   
   csv_stat = csv_ger %>% filter(StCode==station) 
@@ -60,9 +60,55 @@ stat_full <- foreach(station = ger_id[1:1000], .combine = 'rbind', .packages = '
   
 } 
 
-tictoc::toc()
-
 save(stat_full, file = file.path("obs", "Allemagne", "daily_all1.RData"))
+
+# second 1000 stations
+stat_full <- foreach(station = ger_id[1001:2000], .combine = 'rbind', .packages = 'dplyr') %do% {
+  
+  csv_stat = csv_ger %>% filter(StCode==station) 
+  stat_lon = as.data.frame(t(csv_stat %>% select(snow_depth)))
+  colnames(stat_lon) <- csv_stat$date
+  rbind.fill(df_date, stat_lon) %>% slice(2)
+  
+} 
+
+save(stat_full, file = file.path("obs", "Allemagne", "daily_all2.RData"))
+
+# third 1000 stations
+stat_full <- foreach(station = ger_id[2001:3000], .combine = 'rbind', .packages = 'dplyr') %do% {
+  
+  csv_stat = csv_ger %>% filter(StCode==station) 
+  stat_lon = as.data.frame(t(csv_stat %>% select(snow_depth)))
+  colnames(stat_lon) <- csv_stat$date
+  rbind.fill(df_date, stat_lon) %>% slice(2)
+  
+} 
+
+save(stat_full, file = file.path("obs", "Allemagne", "daily_all3.RData"))
+
+# fourth 1000 stations
+stat_full <- foreach(station = ger_id[3001:4000], .combine = 'rbind', .packages = 'dplyr') %do% {
+  
+  csv_stat = csv_ger %>% filter(StCode==station) 
+  stat_lon = as.data.frame(t(csv_stat %>% select(snow_depth)))
+  colnames(stat_lon) <- csv_stat$date
+  rbind.fill(df_date, stat_lon) %>% slice(2)
+  
+} 
+
+save(stat_full, file = file.path("obs", "Allemagne", "daily_all4.RData"))
+
+# fifth 1000 stations
+stat_full <- foreach(station = ger_id[4001:5496], .combine = 'rbind', .packages = 'dplyr') %do% {
+  
+  csv_stat = csv_ger %>% filter(StCode==station) 
+  stat_lon = as.data.frame(t(csv_stat %>% select(snow_depth)))
+  colnames(stat_lon) <- csv_stat$date
+  rbind.fill(df_date, stat_lon) %>% slice(2)
+  
+} 
+
+save(stat_full, file = file.path("obs", "Allemagne", "daily_all5.RData"))
 
 ```
 
