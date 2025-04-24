@@ -1,0 +1,77 @@
+---
+title: "Produce shapefile of scores at NUTS-3 level on selected elevation"
+output: html_document
+date: "2023-07-20"
+---
+The code enables to build the shapefile of the median score of a specific elevation. The score and the elevation are selected by the user. Then the map of the score can be computed in the 'map_score.Rmd' final optional section.
+---
+## Library
+
+```{r, include=FALSE}
+
+library(tidyverse)
+library(tidyr)
+library(rgdal)
+library(sf)
+library(ggmap)
+library(ggplot2)
+library(plyr)
+library(dplyr)
+library(sf)
+
+```
+
+## Parameters
+To be selected by the user 
+
+```{r, include=FALSE}
+
+# USER CHOICE #
+sel.score='cor' # one of: kge bias cor 
+elevation <- 0
+
+```
+
+## Loading files
+
+```{r, include=FALSE}
+
+# MTMSI details
+hist_nut <- st_read(file.path("mtmsi_hist", "max-sd-NS-year_sf_nut.shp")) # dataframe with dates
+nuts_hist <- unique(hist_nut$nuts_id)
+
+# altitude and stations
+altitude_list <- get(load(file.path("mtmsi_hist","score", "alt_list.RData"))) # valeur d'altitudes par nuts
+stat_list <- get(load(file.path("mtmsi_hist","score", "stat_list.RData"))) # nb stations par altitude par nuts (nested list)
+
+# SCORE
+score_list <- get(load(file.path("mtmsi_hist","score",paste0(sel.score,"_list.RData")))) # valeur par altitude pour chaque nuts
+
+# NUT
+shp_nut3 <- st_read(file.path("NUTS","NUTS3_4326.shp"))
+
+```
+
+## Data frame of score and station count per NUT3 unit
+
+```{r, include=FALSE}
+
+df_score <- data.frame()
+
+for (i in c(1:length(nuts_hist))){ #match(sel_nut, nuts_hist)  c(row_hist)
+  val=unlist(lapply(score_list[[i]], function(x) median(unlist(x), na.rm=TRUE)))
+  alt=unlist(altitude_list[[i]])
+  stat=unlist(stat_list[[i]])
+  df_temp=data.frame(valeur=val, altitude=alt,station=stat, nuts=nuts_hist[i])
+  
+  df_score=rbind(df_score,df_temp)
+} 
+
+df_score=df_score %>% dplyr::rename("nuts_id"="nuts",  "score"="valeur")
+
+df_summary <- df_score %>% na.omit() %>% filter(altitude==elevation)
+shp_score <- merge(shp_nut3,df_summary,by='nuts_id')
+
+st_write(shp_score, file.path("carte", "data", paste0(sel.score,elevation,".shp")), append=FALSE)
+
+```

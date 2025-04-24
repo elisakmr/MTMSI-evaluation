@@ -30,7 +30,7 @@ hist_nut <- st_read(file.path("mtmsi_hist","max-sd-NS-year_sf_nut.shp"))
 nuts_hist <- unique(hist_nut$nuts_id)
 
 # SCORE
-score_list <- get(load(file.path("mtmsi_hist", "score", "intcormin_listNEW.RData"))) 
+score_list <- get(load(file.path("mtmsi_hist", "score", "intcormin_list.RData"))) 
 
 # altitude and stations
 altitude_list <- get(load(file.path("mtmsi_hist","score", "alt_list.RData"))) # valeur d'altitudes par nuts
