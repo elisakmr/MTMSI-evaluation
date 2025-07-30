@@ -17,7 +17,6 @@ library(tidyverse)
 library(tidyr)
 library(dplyr)
 library(ncdf4)
-library(rgdal)
 library(sf)
 library(Metrics)
 library(hydroGOF)
@@ -87,7 +86,9 @@ We compute scores, comparing UERRA and ground truth data, following multiple con
 ```{r, include=FALSE}
 
 rmse_list<-list()
+rmse_rel_list<-list()
 bias_list<-list()
+bias_rel_list<-list()
 mae_list<-list()
 cor_list<-list()
 altitude_list <- list()
@@ -102,7 +103,9 @@ for (i in c(1:length(nuts_hist))){ # loop on mtmsi nuts3
   obs_row <- which(obs_sf_nut$nuts_id==nuts_hist[i]) # station within the selected nut3
   
   rmse <- list()
+  rmse_rel <- list()
   biais <- list()
+  biais_rel <- list()
   mae <- list()
   corr <- list()
   alt_vec <- vector()
@@ -137,9 +140,13 @@ for (i in c(1:length(nuts_hist))){ # loop on mtmsi nuts3
         if(max(annee_ok)>=seuil_year){ # if at least one station has enough annual max
           
           rmse[[j]] <- apply(obs_nafilt, 1, function(x) 
+            rmse(x[which(!is.na(x))], df_hist$value[which(!is.na(x))]))
+          rmse_rel[[j]] <- apply(obs_nafilt, 1, function(x) 
             rmse(x[which(!is.na(x))], df_hist$value[which(!is.na(x))])/mean(x, na.rm = TRUE))
           biais[[j]] <- apply(obs_nafilt, 1, function(x) 
             -bias(x[which(!is.na(x))], df_hist$value[which(!is.na(x))]))
+          biais_rel[[j]] <- apply(obs_nafilt, 1, function(x) 
+            -bias(x[which(!is.na(x))], df_hist$value[which(!is.na(x))])/mean(x, na.rm = TRUE))
           mae[[j]] <- apply(obs_nafilt, 1, function(x) 
             mae(x[which(!is.na(x))], df_hist$value[which(!is.na(x))])/mean(x, na.rm = TRUE))
           corr[[j]] <- apply(obs_nafilt, 1, function(x) 
@@ -166,7 +173,9 @@ for (i in c(1:length(nuts_hist))){ # loop on mtmsi nuts3
 
         } else {        # if there is not enough annual maxima from obs
           rmse[[j]] <- NA
+          rmse_rel[[j]] <- NA
           biais[[j]] <- NA
+          biais_rel[[j]] <- NA
           mae[[j]] <- NA
           corr[[j]] <- NA
           kkge[[j]] <- NA
@@ -179,7 +188,9 @@ for (i in c(1:length(nuts_hist))){ # loop on mtmsi nuts3
       
       } else {        # if there is no station elevation close enough
           rmse[[j]] <- NA
+          rmse_rel[[j]] <- NA
           biais[[j]] <- NA
+          biais_rel[[j]] <- NA
           mae[[j]] <- NA
           corr[[j]] <- NA
           kkge[[j]] <- NA 
@@ -193,7 +204,9 @@ for (i in c(1:length(nuts_hist))){ # loop on mtmsi nuts3
     } 
     
    rmse_list[[i]]<-rmse
+   rmse_rel_list[[i]]<-rmse_rel
    bias_list[[i]]<-biais
+   bias_rel_list[[i]]<-biais_rel
    mae_list[[i]]<-mae
    cor_list[[i]]<-corr
    kge_list[[i]]<-kkge 
@@ -205,7 +218,9 @@ for (i in c(1:length(nuts_hist))){ # loop on mtmsi nuts3
    
     }else {        # if there is not any station in the nut
       rmse_list[[i]]<-NA
+      rmse_rel_list[[i]]<-NA
       bias_list[[i]]<-NA
+      bias_rel_list[[i]]<-NA
       mae_list[[i]]<-NA
       cor_list[[i]]<-NA
       kge_list[[i]]<-NA 
@@ -219,7 +234,9 @@ for (i in c(1:length(nuts_hist))){ # loop on mtmsi nuts3
 }
 
 save(rmse_list, file=file.path("mtmsi_hist", "score", "rmse_list.RData"))
+save(rmse_rel_list, file=file.path("mtmsi_hist", "score", "rmse_rel_list.RData"))
 save(bias_list, file=file.path("mtmsi_hist", "score", "bias_list.RData"))
+save(bias_rel_list, file=file.path("mtmsi_hist", "score", "bias_rel_list.RData"))
 save(mae_list, file=file.path("mtmsi_hist", "score", "mae_list.RData"))
 save(cor_list, file=file.path("mtmsi_hist", "score", "cor_list.RData"))
 save(altitude_list, file=file.path("mtmsi_hist", "score", "alt_list.RData"))
