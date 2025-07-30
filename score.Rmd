@@ -121,7 +121,7 @@ for (i in c(1:length(nuts_hist))){ # loop on mtmsi nuts3
       
       alt_temp <- altitudes[j]
       delta_alt=abs(obs_sf_nut$alt[obs_row]-alt_temp) # dif between selected alt and station elevations
-      select_altitude <- which(delta_alt<=150) # we keep station within 150m elevation delta
+      select_altitude <- which(delta_alt<=50) # we keep station within 150m elevation delta
       
       if(length(select_altitude)>=1){ # if there is at least one station at same altitude
         
