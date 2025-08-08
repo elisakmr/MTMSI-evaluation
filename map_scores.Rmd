@@ -49,7 +49,7 @@ worldmap <- ne_countries(scale = 'medium', type = 'map_units',
 pBIAS <- ggplot() +
   geom_sf(data=worldmap)+
   geom_sf(data=shp_bias, aes(fill = valeur), colour=NA)+
-  scale_fill_gradient2(low="blue", high="red", mid="white", midpoint=0, 
+  scale_fill_gradient2(low="red", high="blue", mid="white", midpoint=0, 
                        name="Bias (m)", lim=c(-1.5,1.5),#breaks=c(-0.8,-0.5,0,0.5,0.8),
                        guide = guide_colorbar(title.position="top", title.hjust=0.5, 
                                               barwidth = 10, barheight = 0.5))+

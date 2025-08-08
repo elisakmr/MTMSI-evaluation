@@ -107,12 +107,16 @@ ggsave(file=file.path("plot", "histo_prop_eval.jpg"), dpi = 300, width = 8, heig
 
 ```{r, include=FALSE}
 
+df_ev <- df_overlay %>% filter(cat=='eval')
+
 df_ev500 <- df_overlay %>% filter(cat=='eval' & alt500=='0-500')
 df_ev1000 <- df_overlay %>% filter(cat=='eval' & alt500=='500-1000')
 df_ev1500 <- df_overlay %>% filter(cat=='eval' & alt500=='1000-1500')
 df_ev2000 <- df_overlay %>% filter(cat=='eval' & alt500=='1500-2000')
 df_ev2500 <- df_overlay %>% filter(cat=='eval' & alt500=='2000-2500')
 df_ev3000 <- df_overlay %>% filter(cat=='eval' & alt500=='2500-3000')
+
+df_toto <- df_overlay %>% filter(cat=='total')
 
 df_toto500 <- df_overlay %>% filter(cat=='total' & alt500=='0-500')
 df_toto1000 <- df_overlay %>% filter(cat=='total' & alt500=='500-1000')
