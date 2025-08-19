@@ -1,0 +1,92 @@
+---
+title: "MTMSI mean of annual max sd"
+output: html_document
+date: "2025-08-19"
+---
+We compute the mean of annual maxima of snow depth from MTMSI, on each NUTS' mean elevation
+---
+## Library
+
+```{r, include=FALSE}
+
+library(plyr)
+library(tidyverse)
+library(tidyr)
+library(dplyr)
+library(ncdf4)
+library(sf)
+library(readODS)
+
+```
+
+## Parameters
+
+```{r, include=FALSE}
+
+seuil_year= 20 
+year_int=c(1962:2015)
+indic <- "max-sd-NS-year"
+
+```
+
+## Loading files
+
+```{r, include=FALSE}
+
+# MTMSI
+hist_nut <- st_read(file.path("mtmsi_hist",paste0(indic,"_sf_nut.shp"))) # dataframe with nuts correspondances
+hist_date <- get(load(file.path("mtmsi_hist", paste0(indic,"_df_date.RData")))) # dataframe with dates
+# NUTS ID
+nuts_hist <- unique(hist_nut$nuts_id)
+# MTMSI elevations
+alt_hist <- hist_nut$alt
+
+# NUTS3
+shp_nut3 <- st_read(file.path("NUTS","NUTS3_4326.shp")) # nuts shapefile
+shp_nut_elev <- st_read(file.path("NUTS","shp_altMean4326.shp")) # nuts with mean elevation shapefile
+
+```
+
+## MTMSI mean annual max of snow depth
+
+```{r, include=FALSE}
+
+# Crop MTMSI on time window
+select_annee_hist <- year_filt(hist_date, year_int)
+hist_datafilt = hist_date[,select_annee_hist]
+
+hist_moy <- apply(hist_datafilt, 1, mean)
+df_moy=data.frame(meanmax=hist_moy, nuts_id=hist_nut$nuts_id, elev=hist_nut$alt)
+
+```
+
+## Keeping only mean elevation 
+We intersect the score shapefile generated above (where 1 row = 1 NUTS/elev) with the NUTS-3 mean elevation shapefile (where 1 row = 1 NUTS) 
+
+```{r, include=FALSE}
+
+df_moy2 = data.frame()
+
+for (n in nuts_hist){
+  temp_alt = shp_nut_elev$alt_mtmsi[which(shp_nut_elev$nuts_id==n)]
+  
+  sdmoy = df_moy %>% filter(nuts_id==n) %>% filter(elev==temp_alt)
+  
+  df_moy2 = rbind(df_moy2,sdmoy)
+}
+
+df_summary=df_moy2 %>% na.omit()
+
+```
+
+## Shapefile of score and nb_stat
+In order to have all NUTS-3 details, we merge the above shapefile with the one of NUTS-3
+
+```{r, include=FALSE}
+
+shp_score <- merge(shp_nut3,df_summary,by='nuts_id')
+
+st_write(shp_score, file.path("carte", "data", "sdmean_mtmsi.shp"), append=FALSE)
+
+```
+
