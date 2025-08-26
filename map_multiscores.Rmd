@@ -124,7 +124,7 @@ worldmap <- ne_countries(scale = 'medium', type = 'map_units',
   geom_sf(data=worldmap)+
   geom_sf(data=shp_bias_rel, aes(fill = valeur), colour=NA)+
   scale_fill_gradient2(low="red", high="blue", mid="white", midpoint=0, 
-                       name="Bias (%)", lim=c(-160,160),#breaks=c(-0.8,-0.5,0,0.5,0.8),
+                       name="Bias (%)", lim=c(-230,230),#breaks=c(-0.8,-0.5,0,0.5,0.8),
                        guide = guide_colorbar(title.position="top", title.hjust=0.5, 
                                               barwidth = 10, barheight = 0.5))+
   coord_sf(xlim = c(0, 32), ylim = c(44, 71))+ 

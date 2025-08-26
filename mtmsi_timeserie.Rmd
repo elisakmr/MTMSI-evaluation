@@ -62,8 +62,8 @@ Plot for one NUTS/elevation pair and associated stations
 
 ```{r, include=FALSE}
                                      ### PICKED PARAMETERS ###
-nut<- "NO052" 
-alt = 600 
+nut<- "NL212" 
+alt = 0 
 
                                      ### Buidling dataframe ###
 
@@ -120,7 +120,7 @@ ggplot(df_plot_shape)+
             show.legend = FALSE)+
   scale_color_manual(name='MTMSI:',values=c(UERRA="red"), labels = NULL)+
   scale_x_continuous(breaks = scales::pretty_breaks(n = 12), minor_breaks = seq(1960,2020,1))+
-  coord_cartesian(ylim=c(0,3.6))+
+  #coord_cartesian(ylim=c(0,3.6))+
   #labs(title = paste0(nut, " ", alt,"m"))+
   #labs(title = "(a)")+
   theme_bw()+

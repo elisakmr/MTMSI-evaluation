@@ -15,7 +15,6 @@ library(tidyverse)
 library(tidyr)
 library(dplyr)
 library(ncdf4)
-library(rgdal)
 library(sf)
 library(readODS)
 
@@ -27,13 +26,14 @@ library(readODS)
 
 obs_sf <- st_read(file.path("obs", "obs_sf_nut.shp"))
 obs_max <- get(load(file = file.path("obs","obs_max.RData")))
+hist_nut <- st_read(file.path("mtmsi_hist", "max-sd-NS-year_sf_nut.shp")) 
 
 # NUTS3
 shp_nut3 <- st_read(file.path("NUTS","NUTS3_3857.shp"))
 
 ```
 
-## Computing shapefile of number of stations per NUTS
+## Computing shapefile of NUMBER OF STATIONS per NUTS
 We filter out stations with no data at all.
 
 ```{r, include=FALSE}
@@ -48,6 +48,18 @@ obs_sf_filt <- obs_sf[row_statok,]
 sf_nstatemp = as.data.frame(obs_sf_filt %>% group_by(nuts_id) %>% dplyr::summarise(nb_stat=n())) %>% select(nuts_id,nb_stat)
 
 sf_nstat = merge(shp_nut3, sf_nstatemp, by='nuts_id')
+
+st_write(sf_nstat, file.path("obs", "nb_stat3857.shp"), delete_layer = TRUE)
+  
+```
+
+## Computing shapefile of NUMBER OF EVALUATED BANDS/ MEAN AMOUNT OF STAT PER BAND per NUTS
+
+```{r, include=FALSE}
+
+## Amount of 
+nb_alt = as.data.frame(hist_nut %>% group_by(nuts_id) %>% dplyr::summarise(nb_band=n())) %>% select(nuts_id,nb_band)
+sf_nbband = merge(shp_nut3, nb_alt, by='nuts_id')
 
 st_write(sf_nstat, file.path("obs", "nb_stat3857.shp"), delete_layer = TRUE)
   
