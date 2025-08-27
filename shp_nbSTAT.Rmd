@@ -27,9 +27,15 @@ library(readODS)
 obs_sf <- st_read(file.path("obs", "obs_sf_nut.shp"))
 obs_max <- get(load(file = file.path("obs","obs_max.RData")))
 hist_nut <- st_read(file.path("mtmsi_hist", "max-sd-NS-year_sf_nut.shp")) 
+nuts_hist <- unique(hist_nut$nuts_id)
 
 # NUTS3
 shp_nut3 <- st_read(file.path("NUTS","NUTS3_3857.shp"))
+
+# SCORE
+score_list <- get(load(file.path("mtmsi_hist", "score", "intcormin_list.RData"))) 
+altitude_list <- get(load(file.path("mtmsi_hist","score", "alt_list.RData"))) # valeur d'altitudes par nuts
+stat_list <- get(load(file.path("mtmsi_hist","score", "stat_list.RData"))) # nb stations par altitude par nuts (nested list)
 
 ```
 
@@ -57,10 +63,29 @@ st_write(sf_nstat, file.path("obs", "nb_stat3857.shp"), delete_layer = TRUE)
 
 ```{r, include=FALSE}
 
-## Amount of 
-nb_alt = as.data.frame(hist_nut %>% group_by(nuts_id) %>% dplyr::summarise(nb_band=n())) %>% select(nuts_id,nb_band)
-sf_nbband = merge(shp_nut3, nb_alt, by='nuts_id')
+df_evalband <- data.frame()
 
-st_write(sf_nstat, file.path("obs", "nb_stat3857.shp"), delete_layer = TRUE)
-  
+for (i in c(1:length(nuts_hist))){
+
+  scor=score_list[[i]]
+  alt=altitude_list[[i]]
+  stat=stat_list[[i]]
+  df_temp=data.frame(valeur=scor, altitude=alt, station=stat, nuts_id=nuts_hist[i])
+
+  df_evalband=rbind(df_evalband,df_temp)
+}
+
+df_evalband = df_evalband %>% na.omit()
+
+## Amount of evaluated altitude bands
+nb_band = df_evalband %>% group_by(nuts_id) %>% dplyr::summarise(nb_band=n())
+sf_nbband = merge(shp_nut3, nb_band, by='nuts_id')
+
+## Mean amount of station per evaluated altitude band
+nb_stat = df_evalband %>% group_by(nuts_id) %>% dplyr::summarise(nb_stat=mean(station))
+sf_nbstat = merge(shp_nut3, nb_band, by='nuts_id')
+
+st_write(sf_nbband, file.path("carte", "data", "nb_bandNUT.shp"), delete_layer = TRUE)
+st_write(sf_nbstat, file.path("carte", "data", "nb_stat_band.shp"), delete_layer = TRUE)
+
 ```
