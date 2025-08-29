@@ -83,7 +83,7 @@ sf_nbband = merge(shp_nut3, nb_band, by='nuts_id')
 
 ## Mean amount of station per evaluated altitude band
 nb_stat = df_evalband %>% group_by(nuts_id) %>% dplyr::summarise(nb_stat=mean(station))
-sf_nbstat = merge(shp_nut3, nb_band, by='nuts_id')
+sf_nbstat = merge(shp_nut3, nb_stat, by='nuts_id')
 
 st_write(sf_nbband, file.path("carte", "data", "nb_bandNUT.shp"), delete_layer = TRUE)
 st_write(sf_nbstat, file.path("carte", "data", "nb_stat_band.shp"), delete_layer = TRUE)
