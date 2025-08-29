@@ -1,0 +1,177 @@
+---
+title: "Boxplot of scores split by latitude"
+output: html_document
+date: "2025-08-28"
+---
+
+
+## Library
+
+```{r, include=FALSE}
+
+library(plyr)
+library(tidyverse)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(stats)
+library(sf)
+library(ggpubr)
+
+```
+
+## Parameters
+Choose the score to be plotted
+
+```{r, include=FALSE}
+
+sel.score='bias' # one of rmse, rmse_rel, mae, bias, bias_rel, cor, intcormed
+
+```
+
+## Loading files
+
+```{r, include=FALSE}
+
+# MTMSI details
+hist_nut <- st_read(file.path("mtmsi_hist", "max-sd-NS-year_sf_nut.shp")) # dataframe with dates
+nuts_hist <- unique(hist_nut$nuts_id)
+
+# Scores
+score_list <- get(load(file.path("mtmsi_hist","score",paste0(sel.score,"_list.RData")))) # valeur par altitude pour chaque nuts
+
+# Altitude and number of stations
+altitude_list <- get(load(file.path("mtmsi_hist","score", "alt_list.RData"))) # valeur d'altitudes par nuts
+stat_list <- get(load(file.path("mtmsi_hist","score", "stat_list.RData"))) # nb stations par altitude par nuts (nested list)
+
+```
+
+## Data frame of scores and station count per NUT3 unit
+
+```{r, include=FALSE}
+
+df_score <- data.frame()
+  
+  # there are multiple values per NUTS/elevation pair, we are keeping them all
+for (i in c(1:length(nuts_hist))){
+    
+  alt=altitude_list[[i]]
+  stat=unlist(stat_list[[i]])
+  scor=unlist(score_list[[i]])
+    
+  if(length(na.omit(stat))>=1){
+    alt <- rep(alt[!is.na(stat)], stat[!is.na(stat)]) # we replicate the altitude values as there are mutliple score values
+    scor = na.omit(scor)
+  }
+    
+  df_temp=data.frame(valeur=scor, altitude=alt, nuts=nuts_hist[i])
+    
+  df_score=rbind(df_score,df_temp)
+  
+} 
+
+df_score %>% arrange(valeur)
+
+```
+
+## Boxplot per altitude layer: CORRELATION & BIAS 
+We plot the score values side by side, per 500m elevation.
+
+```{r, include=FALSE}
+
+df_cor = df_score %>% mutate(alti500 = cut(altitude, breaks = seq(0,3500,500), 
+                                              labels=c("0-500","500-1000","1000-1500","1500-2000",
+                                                     "2000-2500","2500-3000","3000-3500"), 
+                                              right=FALSE)) %>% na.omit() %>% mutate(lat=NA)
+
+df_bias = df_score %>% mutate(alti500 = cut(altitude, breaks = seq(0,3500,500), 
+                                              labels=c("0-500","500-1000","1000-1500","1500-2000",
+                                                     "2000-2500","2500-3000","3000-3500"), 
+                                              right=FALSE)) %>% na.omit() %>% mutate(lat=NA)
+hist_nut
+# split nuts_id by latitude intervals
+bbox3 <- st_bbox(c(xmin = -28, xmax = 44, ymax = 48, ymin = 26), crs = st_crs(4326))
+bbox2 <- st_bbox(c(xmin = -28, xmax = 44, ymax = 55, ymin = 48), crs = st_crs(4326))
+bbox1 <- st_bbox(c(xmin = -28, xmax = 44, ymax = 70, ymin = 55), crs = st_crs(4326))
+
+crop1 <- st_crop(hist_nut, bbox1)
+nuts1 <- unique(crop1$nuts_id)
+crop2 <- st_crop(hist_nut, bbox2)
+nuts2 <- unique(crop2$nuts_id)
+crop3 <- st_crop(hist_nut, bbox3)
+nuts3 <- unique(crop3$nuts_id)
+
+
+df_cor[which(df_cor$nuts %in% nuts1),"lat"] <- 1
+df_cor[which(df_cor$nuts %in% nuts2),"lat"] <- 2
+df_cor[which(df_cor$nuts %in% nuts3),"lat"] <- 3
+
+df_bias[which(df_bias$nuts %in% nuts1),"lat"] <- 1
+df_bias[which(df_bias$nuts %in% nuts2),"lat"] <- 2
+df_bias[which(df_bias$nuts %in% nuts3),"lat"] <- 3
+
+latitude_string = c("> 55°N", "48°N - 55°N", "< 48°N")
+
+palette_alti = c("darkblue", "#427FE2","#41AB5D", "#FE9929", "#CC4C02", "#662506", "grey")
+
+pCOR <- list()
+pBIAS <- list()
+
+for (lati in c(1:3)){
+
+                                               ## CORRELATION ##
+  
+  pCOR[[lati]] <- ggplot(df_cor %>% filter(lat==get("lati"))) + 
+  geom_boxplot(aes(x=factor(alti500),y=valeur, group=alti500, fill=alti500), show.legend = FALSE, alpha=0.5, color="#737373") +
+  scale_fill_manual(breaks=c("0-500","500-1000","1000-1500","1500-2000","2000-2500","2500-3000","3000-3500"), 
+                    values=palette_alti)+
+  theme_classic()+
+  labs(x="", y="", title = "", fill="Elevation (m)") + #Correlation
+  theme(axis.title.y=element_text(angle = 90, vjust = 1, size=18), 
+        axis.title.x=element_text(angle = 0, hjust = 1, size=18),
+        title = element_text(size=22),
+        axis.text.y=element_text(size=18),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        plot.title.position = 'plot',
+        plot.title = element_text(hjust = 0.5),
+        plot.margin=unit(c(1,40,1,1),"mm"))+
+  scale_y_continuous(breaks = c(-1,0,0.5,1), labels=c('-1','0','0.5','1'))
+
+  
+                                                  ## BIAS ##
+  
+  pBIAS[[lati]] <- ggplot(df_bias %>% filter(lat==get("lati"))) + 
+  geom_boxplot(aes(x=factor(alti500),y=valeur, group=alti500, fill=alti500), show.legend = TRUE, alpha=0.5, color="#737373") +
+  scale_fill_manual(breaks=c("0-500","500-1000","1000-1500","1500-2000","2000-2500","2500-3000","3000-3500"), 
+                    values=palette_alti)+
+  theme_classic()+
+  labs(x="", y=latitude_string[lati], title="", fill="Elevation (m)") + # Bias (m)
+  theme(axis.title.y=element_text(angle = 90, vjust = -135, hjust=0.5, size=25), 
+        axis.title.x=element_text(angle = 0, hjust = 1, size=18),
+        title = element_text(size=22),
+        axis.text.y=element_text(size=18),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        plot.title.position = 'plot',
+        plot.title = element_text(hjust = 0.5),
+        plot.margin=unit(c(1,40,1,1),"mm"),
+        legend.text = element_text(size=18),
+        legend.background=element_rect(fill="#E3E3E4"),
+        legend.spacing=unit(2,"cm"))+
+    guides(fill=guide_legend(nrow=1))
+    
+
+  
+  }
+
+ggarrange(pCOR[[1]],pBIAS[[1]],pCOR[[2]],pBIAS[[2]],pCOR[[3]],pBIAS[[3]],ncol=2, nrow=3, common.legend = TRUE, legend="bottom")
+ggsave(file=file.path("plot", "score_multibox.jpg"), dpi = 300, width = 23, height = 20)
+
+
+
+```
+
+
+
+

@@ -26,7 +26,7 @@ Choose the score to be plotted
 
 ```{r, include=FALSE}
 
-sel.score='rmse_rel' # one of rmse, rmse_rel, mae, bias, bias_rel, cor, intcormed
+sel.score='intcormed' # one of rmse, rmse_rel, mae, bias, bias_rel, cor, intcormed
 
 ```
 
@@ -94,11 +94,7 @@ We plot the score values side by side, per 500m elevation.
 
 ```{r, include=FALSE}
 
-df_score2_cor = df_score %>% mutate(alti500 = cut(altitude, breaks = seq(0,3500,500), 
-                                              labels=c("0-500","500-1000","1000-1500","1500-2000",
-                                                     "2000-2500","2500-3000","3000-3500"), 
-                                              right=FALSE)) 
-df_score2_bis = df_score %>% mutate(alti500 = cut(altitude, breaks = seq(0,3500,500), 
+df_score2 = df_score %>% mutate(alti500 = cut(altitude, breaks = seq(0,3500,500), 
                                               labels=c("0-500","500-1000","1000-1500","1500-2000",
                                                      "2000-2500","2500-3000","3000-3500"), 
                                               right=FALSE)) 
@@ -106,14 +102,12 @@ df_score2_bis = df_score %>% mutate(alti500 = cut(altitude, breaks = seq(0,3500,
 
 palette_alti = c("darkblue", "#427FE2","#41AB5D", "#FE9929", "#CC4C02", "#662506", "grey")
 
-## BIAS ##
-
-p.bias <- ggplot(df_score2_bis %>% na.omit()) + 
+ggplot(df_score2 %>% na.omit()) + 
   geom_boxplot(aes(x=factor(alti500),y=valeur, group=alti500, fill=alti500), show.legend = FALSE, alpha=0.5) + # set metric
   scale_fill_manual(breaks=c("0-500","500-1000","1000-1500","1500-2000", "2000-2500","2500-3000","3000-3500"),
                     values=palette_alti)+
   theme_classic()+
-  labs(x="Elevation (m)", y="Bias (m)", title = '(a)') + 
+  labs(x="Elevation (m)", y=" ") + 
   coord_cartesian(ylim=c(-2,2))+
   theme(axis.title.y=element_text(angle = 90, vjust = 1, size=10), 
         axis.title.x=element_text(angle = 0, hjust = 1, size=10),
@@ -122,24 +116,6 @@ p.bias <- ggplot(df_score2_bis %>% na.omit()) +
         plot.title.position = 'plot',
         plot.title = element_text(hjust = 0.5))
 
-## CORRELATION ##
-
-  p.cor <- ggplot(df_score2_cor %>% na.omit()) + 
-  geom_boxplot(aes(x=factor(alti500),y=valeur, group=alti500, fill=alti500), show.legend = FALSE, alpha=0.5) + # set metric
-  scale_fill_manual(breaks=c("0-500","500-1000","1000-1500","1500-2000","2000-2500","2500-3000","3000-3500"), 
-                    values=palette_alti)+
-  theme_classic()+
-  labs(x="Elevation (m)", y="Correlation", title = "(b)") + 
-  theme(axis.title.y=element_text(angle = 90, vjust = 1, size=10), 
-        axis.title.x=element_text(angle = 0, hjust = 1, size=10),
-        axis.text.y=element_text(size=8),
-        axis.text.x=element_text(size=8),
-        plot.title.position = 'plot',
-        plot.title = element_text(hjust = 0.5))+
-  scale_y_continuous(breaks = c(-1,0,0.5,1), labels=c('-1','0','0.5','1'))
-
-
-ggarrange(p.bias, p.cor,ncol=2)
 
 ggsave(file=file.path("plot", "box_score.png"), dpi = 300, width = 10, height = 5)
 
@@ -164,7 +140,7 @@ ggplot(df_score3 %>% na.omit()) +
                                                      "2000-2500","2500-3000","3000-3500"),
                     values=palette_alti)+
   theme_classic()+
-  labs(x="Elevation (m)", y="Inter-correlation") + 
+  labs(x="Elevation (m)", y="Inter-correlation", fill="Elevation (m)") + 
   theme(axis.title.y=element_text(angle = 90, vjust = 1, size=10), 
         axis.title.x=element_text(angle = 0, hjust = 1, size=10),
         axis.text.y=element_text(size=8),
