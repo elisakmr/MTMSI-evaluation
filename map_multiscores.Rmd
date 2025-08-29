@@ -35,15 +35,14 @@ shp_bias <- st_read(file.path("carte","data","bias_all.shp"))
 shp_bias_rel <- st_read(file.path("carte","data","bias_rel_all.shp")) 
 shp_cor <- st_read(file.path("carte","data", "cor_all.shp")) 
 
+  # country borders #
+worldmap <- ne_countries(scale = 'medium', type = 'map_units',
+                         returnclass = 'sf')
 ```
 
 ## MAPPING
 
 ```{r, include=FALSE}
-
-  # country borders #
-worldmap <- ne_countries(scale = 'medium', type = 'map_units',
-                         returnclass = 'sf')
 
 
                                       ###### MEAN MAX SD ######
@@ -53,7 +52,7 @@ worldmap <- ne_countries(scale = 'medium', type = 'map_units',
   scale_fill_gradient2(low="white", high="royalblue3",
                        name="Snow depth maxima mean (m)", lim=c(0,2.2),
                        guide = guide_colorbar(title.position="top", title.hjust=0.5, 
-                                              barwidth = 10, barheight = 0.5))+
+                                              barwidth = 10, barheight = 0.5, ticks.colour="black"))+
   coord_sf(xlim = c(0, 32), ylim = c(44, 71))+ 
   theme_light()+
   theme(axis.text = element_text(size=15), legend.title = element_text(size=18), 
@@ -66,9 +65,9 @@ worldmap <- ne_countries(scale = 'medium', type = 'map_units',
   geom_sf(data=worldmap)+
   geom_sf(data=shp_bias, aes(fill = valeur), colour=NA)+
   scale_fill_gradient2(low="red", high="blue", mid="white", midpoint=0, 
-                       name="Bias (m)", lim=c(-1.5,1.5),
+                       name="Bias (m)", lim=c(-1.5,1.5), breaks=c(-1.5,-0.8,0,0.8, 1.5),
                        guide = guide_colorbar(title.position="top", title.hjust=0.5, 
-                                              barwidth = 10, barheight = 0.5))+
+                                              barwidth = 10, barheight = 0.5, ticks.colour="black"))+
   coord_sf(xlim = c(0, 32), ylim = c(44, 71))+ 
   theme_light()+
   theme(axis.text = element_text(size=15), legend.title = element_text(size=18), 
@@ -82,9 +81,9 @@ worldmap <- ne_countries(scale = 'medium', type = 'map_units',
   geom_sf(data=worldmap)+
   geom_sf(data=shp_bias_rel, aes(fill = valeur), colour=NA)+
   scale_fill_gradient2(low="red", high="blue", mid="white", midpoint=0, 
-                       name="Bias (%)", lim=c(-230,230),#breaks=c(-0.8,-0.5,0,0.5,0.8),
+                       name="Bias (%)", lim=c(-180,180),#c(-230,230)
                        guide = guide_colorbar(title.position="top", title.hjust=0.5, 
-                                              barwidth = 10, barheight = 0.5))+
+                                              barwidth = 10, barheight = 0.5, ticks.colour="black"))+
   coord_sf(xlim = c(0, 32), ylim = c(44, 71))+ 
   theme_light()+
   theme(axis.text = element_text(size=15), legend.title = element_text(size=18), 
@@ -100,7 +99,7 @@ worldmap <- ne_countries(scale = 'medium', type = 'map_units',
   scale_fill_gradient2(low="white", high="darkgreen", mid="#ccece6", midpoint=0.5, 
                        lim=c(-0.1,1), name="Correlation", breaks=c(0,0.2,0.4,0.6,0.8,1),
                        guide = guide_colorbar(title.position="top", title.hjust=0.5, 
-                                              barwidth = 10, barheight = 0.5))+ 
+                                              barwidth = 10, barheight = 0.5, ticks.colour="black"))+ 
   coord_sf(xlim = c(0, 32), ylim = c(44, 71))+ 
   theme_light()+
   theme(axis.text = element_text(size=15), legend.title = element_text(size=18), 
