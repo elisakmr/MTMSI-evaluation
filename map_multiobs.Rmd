@@ -45,7 +45,10 @@ pSTAT <- ggplot() +
   coord_sf(xlim = c(-2, 32), 
               ylim = c(40, 71))+ 
   theme_light()+
-  theme(axis.text = element_text(size=6), legend.position = "bottom", legend.title = element_text(size=9, hjust=0.5))
+  theme(axis.text = element_text(size=15), 
+        legend.position = "bottom", 
+        legend.title = element_text(size=18, hjust=0.5),
+        legend.text=element_text(size=15))
 
 # Saving plot
 # png(file.path("carte", "NB_stat.jpg"), 
@@ -83,7 +86,10 @@ pBAND <- ggplot() +
   coord_sf(xlim = c(-2, 32), 
               ylim = c(40, 71))+ 
   theme_light()+
-  theme(axis.text = element_text(size=6), legend.position = "bottom", legend.title = element_text(size=9, hjust=0.5))
+  theme(axis.text = element_text(size=15), 
+        legend.position = "bottom", 
+        legend.title = element_text(size=18, hjust=0.5),
+        legend.text=element_text(size=15))
 
 
 # Plot amount of station per band
@@ -97,13 +103,16 @@ pSTATBAND <- ggplot() +
   coord_sf(xlim = c(-2, 32), 
               ylim = c(40, 71))+ 
   theme_light()+
-  theme(axis.text = element_text(size=6), legend.position = "bottom", legend.title = element_text(size=9, hjust=0.5))
+  theme(axis.text = element_text(size=15), 
+        legend.position = "bottom", 
+        legend.title = element_text(size=18, hjust=0.5),
+        legend.text=element_text(size=15))
 
 ###
 # Faire pEVAL dans code 'score_histogram'
 ###
 
-png(file.path("carte","map_multiobs.jpg"), 
+png(file.path("carte","map_multiobs2.jpg"), 
     width = 35, height = 20, units = "in", res=300)
 ggarrange(pSTAT, pBAND, pSTATBAND, pEVAL, nrow = 2, ncol=2)
 dev.off()
