@@ -27,14 +27,10 @@ library(scales)
 
 ```
 
-## Mapping scores on MEAN elevation
+## BIAS
 
 ```{r, include=FALSE}
 
-
-####################################################################################
-## MAPPING CORR AND BIAS SIDE BY SIDE ##
-####################################################################################
 
 # LOADING DATA #
 
@@ -44,7 +40,6 @@ shp_cor <- st_read(file.path("carte","data", "cor_all.shp"))
 worldmap <- ne_countries(scale = 'medium', type = 'map_units',
                          returnclass = 'sf')
 
-                                      ###### MAPPING BIAS ######
 
 pBIAS <- ggplot() +
   geom_sf(data=worldmap)+
@@ -60,7 +55,18 @@ pBIAS <- ggplot() +
         panel.background = element_rect(fill = "lightsteelblue2"),
         plot.title = element_text(hjust = 0.5))
 
-                                      ###### MAPPING CORRELATION ######
+png(file.path("carte","mapKGE_new.jpg"), 
+    width = 10, height = 8, units = "in", res=300)
+pBIAS
+dev.off()
+
+
+```
+
+## CORRELATION
+
+```{r, include=FALSE}
+
 pCOR <- ggplot() +
   geom_sf(data=worldmap)+
   geom_sf(data=shp_cor, aes(fill = valeur), colour=NA)+ #
@@ -75,16 +81,16 @@ pCOR <- ggplot() +
         panel.background = element_rect(fill = "lightsteelblue2"),
         plot.title = element_text(hjust = 0.5))
 
-png(file.path("carte","mapCOR_BIAS.jpg"), 
+png(file.path("carte","mapKGE_new.jpg"), 
     width = 10, height = 8, units = "in", res=300)
-ggarrange(pBIAS,pCOR,ncol=2, legend = "bottom")
+pCOR
 dev.off()
 
+```
 
-####################################################################################
-## MAPPING KGE ONLY ##
-####################################################################################
+## KGE
 
+```{r, include=FALSE}
 # LOADING DATA #
 
 shp_kge <- st_read(file.path("carte","data","kge_all.shp")) 
@@ -93,35 +99,81 @@ shp_kge3857 <- st_transform(shp_kge, 3857)
 worldmap <- ne_countries(scale = 'medium', type = 'map_units',
                          returnclass = 'sf')
 
-pKGE <- ggplot() +
-  geom_sf(data=worldmap)+
-  geom_sf(data=shp_kge, aes(fill = valeur), colour=NA)+
-  scale_fill_gradientn(colors=c("firebrick1","#CC3311", "white", "#2e3d82"), values = rescale(c(-3,-2,-1,-0.41,0,0.5,1)), #colors=c("#CC3311", "white", "#009988")
-                       name="KGE", limits=c(-3,1), breaks=c(-3,-2,-0.4,1),
-                       guide = guide_colorbar(title.position="top", title.hjust=0.5, 
-                                              barwidth = 10, barheight = 0.5))+
-  coord_sf(xlim = c(0, 32), ylim = c(42, 71))+ 
-  theme_light()+
-  theme(axis.text = element_text(size=6), legend.title = element_text(size=10), 
-        legend.position = "bottom",
-        panel.background = element_rect(fill = "lightsteelblue2"))
+shp_kge_class <- shp_kge %>% mutate(class_kge = cut(valeur, breaks = c(-3,-2,-1,-0.41,0,0.5,1), labels=c("-3;-2","-2;-1","-1;-0.41","-0.41;0","0;0.5","0.5,1")))
+palette_kge <- c("firebrick1","chocolate1","khaki1", "darkseagreen1","steelblue1", "darkblue")
+
+# pKGE <- ggplot() +
+#   geom_sf(data=worldmap)+
+#   geom_sf(data=shp_kge, aes(fill = valeur), colour=NA)+
+#   scale_fill_gradientn(colors=c("firebrick1","chocolate1","khaki1", "darkseagreen1","steelblue1", "darkblue"), values = rescale(c(-3,-2,-1,-0.41,0,0.5,1)), name="KGE", limits=c(-3,1), breaks=c(-3,-1.5,-0.41,1), 
+#                        guide = guide_colorbar(title.position="top", title.hjust=0.5,
+#                                               barwidth = 10, barheight = 0.5))+
+#   coord_sf(xlim = c(0, 32), ylim = c(42, 71))+ 
+#   theme_light()+
+#   theme(axis.text = element_text(size=6), legend.title = element_text(size=10), 
+#         legend.position = "bottom",
+#         panel.background = element_rect(fill = "lightsteelblue2"))
 
 pKGE <- ggplot() +
   geom_sf(data=worldmap)+
-  geom_sf(data=shp_kge, aes(fill = valeur), colour=NA)+
-  scale_fill_gradientn(colors=c("firebrick1","chocolate1","khaki1", "darkseagreen1","steelblue1", "darkblue"), values = rescale(c(-3,-2,-1,-0.41,0,0.5,1)), name="KGE", limits=c(-3,1), breaks=c(-3,-1.5,-0.41,1), 
-                       guide = guide_colorbar(title.position="top", title.hjust=0.5,
-                                              barwidth = 10, barheight = 0.5))+
+  geom_sf(data=shp_kge_class, aes(fill = class_kge), colour=NA)+
+  scale_fill_manual(values=palette_kge)+ 
+  guides(fill=guide_legend(title="KGE", title.position = "top", nrow=1)) +
   coord_sf(xlim = c(0, 32), ylim = c(42, 71))+ 
   theme_light()+
-  theme(axis.text = element_text(size=6), legend.title = element_text(size=10), 
+  theme(axis.text = element_text(size=6), 
         legend.position = "bottom",
-        panel.background = element_rect(fill = "lightsteelblue2"))
+        panel.background = element_rect(fill = "lightsteelblue2"),
+        legend.title = element_text(size=10, hjust=0.5))
 
-png(file.path("carte","mapKGE_new.jpg"), 
-    width = 10, height = 8, units = "in", res=300)
+
+png(file.path("carte","mapKGE.jpg"), 
+    width = 10, height = 10, units = "in", res=300)
 pKGE
 dev.off()
+
+
+
+```
+
+## KGE GAMMA
+
+```{r, include=FALSE}
+
+shp_gamma <- st_read(file.path("carte","data","kge_gamma_all.shp")) 
+  
+worldmap <- ne_countries(scale = 'medium', type = 'map_units',
+                         returnclass = 'sf')
+
+shp_gamma_class <- shp_gamma %>% mutate(class_gamma = cut(valeur, breaks = c(0.5,0.8,1.2,1.4,1.7,2), labels=c("0.5;0.8","0.8;1.1","1.1;1.4","1.4;1.7","1.7;2")))
+palette_gamma <- c("#D4A8E6", "#47CD41","khaki1", "chocolate1", "#9A4A00")
+
+pGAMMA <- ggplot() +
+  geom_sf(data=worldmap)+
+  geom_sf(data=shp_gamma_class, aes(fill = class_gamma), colour=NA)+
+  scale_fill_manual(values=palette_gamma)+ 
+  guides(fill=guide_legend(title="Gamma", title.position = "top")) +
+  coord_sf(xlim = c(0, 32), ylim = c(42, 71))+ 
+  theme_light()+
+  theme(axis.text = element_text(size=6), 
+        legend.title = element_text(size=10, hjust=0.5), 
+        legend.position = "bottom",
+        panel.background = element_rect(fill = "lightsteelblue2"))
+
+png(file.path("carte","mapKGE.jpg"), 
+    width = 10, height = 10, units = "in", res=300)
+pGAMMA
+dev.off()
+
+#####################################################
+# KGE and GAMMA side by side
+#####################################################
+
+png(file.path("carte","mapKGE_GAMMA.jpg"), 
+    width = 10, height = 8, units = "in", res=300)
+ggarrange(pKGE,pGAMMA,ncol=2, legend = "bottom")
+dev.off()
+
 
 ```
 
@@ -152,37 +204,6 @@ ggplot() +
   new_scale_fill() +
   geom_sf(data=shp_mae %>% filter(valeur=="above_2.5"), aes(fill = as.factor(valeur)), colour=NA)+
   scale_fill_manual(name='MAE > 2.5m',values=c(above_2.5="#750C9F"), labels = NULL)+
-  coord_sf(xlim = c(0, 32), ylim = c(42, 71))+ 
-  theme_light()+
-  theme(axis.text = element_text(size=6), legend.title = element_text(size=10), 
-        legend.position = "bottom",
-        panel.background = element_rect(fill = "lightsteelblue2"))
-
-dev.off()
-
-```
-
-## KGE GAMMA
-
-```{r, include=FALSE}
-
-shp_gamma <- st_read(file.path("carte","data","kge_gamma_all.shp")) 
-  
-worldmap <- ne_countries(scale = 'medium', type = 'map_units',
-                         returnclass = 'sf')
-
-
-png(file.path("carte","map_gamma.jpg"), 
-    width = 10, height = 10, units = "in", res=300)
-
-ggplot() +
-  geom_sf(data=worldmap)+
-  geom_sf(data=shp_gamma, aes(fill = valeur), colour=NA)+
-  scale_fill_gradientn(colors=c("#195F24", "#9FE67B", "yellow", "#EC8B3D", "red"), 
-                       values = rescale(c(0.5,0.8,1.1,1.4,1.7,2)), name="KGE gamma", limits=c(0.5,2), 
-                       breaks=c(0.5,0.8,1.1,1.4,1.7,2), 
-                       guide = guide_colorbar(title.position="top", title.hjust=0.5,
-                                              barwidth = 10, barheight = 0.5))+
   coord_sf(xlim = c(0, 32), ylim = c(42, 71))+ 
   theme_light()+
   theme(axis.text = element_text(size=6), legend.title = element_text(size=10), 
