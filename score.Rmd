@@ -96,6 +96,7 @@ station_list <- list()
 intercor_min_l <- list()
 intercor_med_l <- list()
 kge_list <- list()
+kge_gamma_list <- list()
 stat_row_l <- list()
 
 for (i in c(1:length(nuts_hist))){ # loop on mtmsi nuts3 
@@ -113,6 +114,7 @@ for (i in c(1:length(nuts_hist))){ # loop on mtmsi nuts3
   intercor_min <- vector()
   intercor_med <- vector()
   kkge <- list()
+  kgegamma <- list()
   stat_row <- list()
 
   if (length(obs_row)>=1){ # if there is at least one station in the nut
@@ -152,7 +154,9 @@ for (i in c(1:length(nuts_hist))){ # loop on mtmsi nuts3
           corr[[j]] <- apply(obs_nafilt, 1, function(x) 
             cor(x[which(!is.na(x))], df_hist$value[which(!is.na(x))], method = "pearson"))
           kkge[[j]] <- apply(obs_nafilt, 1, function(x) 
-            KGE(x[which(!is.na(x))], df_hist$value[which(!is.na(x))], method = "2012")) 
+            KGE(x[which(!is.na(x))], df_hist$value[which(!is.na(x))], method = "2012"))
+          kgegamma[[j]] <- apply(obs_nafilt, 1, function(x) 
+            KGE(x[which(!is.na(x))], df_hist$value[which(!is.na(x))], method = "2012", out.type="full")$KGE.elements[3])
           
           stat_row[[j]] <- obs_row_150[which(annee_ok>=seuil_year)] # rows of selected station, to keep track of which station were used
           
@@ -179,6 +183,7 @@ for (i in c(1:length(nuts_hist))){ # loop on mtmsi nuts3
           mae[[j]] <- NA
           corr[[j]] <- NA
           kkge[[j]] <- NA
+          kgegamma[[j]] <- NA
           alt_vec[j] <- altitudes[j]
           stat_vec[j] <- NA
           intercor_min[j] <- NA
@@ -194,6 +199,7 @@ for (i in c(1:length(nuts_hist))){ # loop on mtmsi nuts3
           mae[[j]] <- NA
           corr[[j]] <- NA
           kkge[[j]] <- NA 
+          kgegamma[[j]] <- NA
           alt_vec[j] <- altitudes[j]
           stat_vec[j] <- NA
           intercor_min[j] <- NA
@@ -210,6 +216,7 @@ for (i in c(1:length(nuts_hist))){ # loop on mtmsi nuts3
    mae_list[[i]]<-mae
    cor_list[[i]]<-corr
    kge_list[[i]]<-kkge 
+   kge_gamma_list[[i]] <- kgegamma
    altitude_list[[i]]<-alt_vec
    station_list[[i]] <- stat_vec
    intercor_min_l[[i]] <- intercor_min
@@ -217,13 +224,14 @@ for (i in c(1:length(nuts_hist))){ # loop on mtmsi nuts3
    stat_row_l[[i]] <- stat_row
    
     }else {        # if there is not any station in the nut
-      rmse_list[[i]]<-NA
-      rmse_rel_list[[i]]<-NA
-      bias_list[[i]]<-NA
-      bias_rel_list[[i]]<-NA
-      mae_list[[i]]<-NA
-      cor_list[[i]]<-NA
-      kge_list[[i]]<-NA 
+      rmse_list[[i]] <- NA
+      rmse_rel_list[[i]] <- NA
+      bias_list[[i]] <- NA
+      bias_rel_list[[i]] <- NA
+      mae_list[[i]] <- NA
+      cor_list[[i]] <- NA
+      kge_list[[i]] <- NA 
+      kge_gamma_list[[i]] <- NA
       altitude_list[[i]] <- NA
       station_list[[i]] <- NA
       intercor_min_l[[i]] <- NA
@@ -244,6 +252,7 @@ save(station_list, file=file.path("mtmsi_hist", "score", "stat_list.RData"))
 save(intercor_min_l, file=file.path("mtmsi_hist", "score", "intcormin_list.RData"))
 save(intercor_med_l, file=file.path("mtmsi_hist", "score", "intcormed_list.RData"))
 save(kge_list, file=file.path("mtmsi_hist", "score", "kge_list.RData"))
+save(kge_gamma_list, file=file.path("mtmsi_hist", "score", "kge_gamma_list.RData"))
 save(stat_row_l, file=file.path("mtmsi_hist", "score", "statrow_list.RData"))
 
 ```

@@ -162,6 +162,37 @@ dev.off()
 
 ```
 
+## KGE GAMMA
+
+```{r, include=FALSE}
+
+shp_gamma <- st_read(file.path("carte","data","kge_gamma_all.shp")) 
+  
+worldmap <- ne_countries(scale = 'medium', type = 'map_units',
+                         returnclass = 'sf')
+
+
+png(file.path("carte","map_gamma.jpg"), 
+    width = 10, height = 10, units = "in", res=300)
+
+ggplot() +
+  geom_sf(data=worldmap)+
+  geom_sf(data=shp_gamma, aes(fill = valeur), colour=NA)+
+  scale_fill_gradientn(colors=c("#195F24", "#9FE67B", "yellow", "#EC8B3D", "red"), 
+                       values = rescale(c(0.5,0.8,1.1,1.4,1.7,2)), name="KGE gamma", limits=c(0.5,2), 
+                       breaks=c(0.5,0.8,1.1,1.4,1.7,2), 
+                       guide = guide_colorbar(title.position="top", title.hjust=0.5,
+                                              barwidth = 10, barheight = 0.5))+
+  coord_sf(xlim = c(0, 32), ylim = c(42, 71))+ 
+  theme_light()+
+  theme(axis.text = element_text(size=6), legend.title = element_text(size=10), 
+        legend.position = "bottom",
+        panel.background = element_rect(fill = "lightsteelblue2"))
+
+dev.off()
+
+```
+
 ## OPTIONNAL --- Mapping scores on a selected elevation
 It requires to have computed the required shapefile beforehand!
 

@@ -24,7 +24,7 @@ library(sf)
 
 ```{r, include=FALSE}
 
-sel.score='bias_rel' # one of rmse, rmse_rel, mae, bias, bias_rel, cor, intcormed
+sel.score='kge_gamma' # one of rmse, rmse_rel, mae, bias, bias_rel, cor, intcormed, kge, kge_gamma
 
 indic <- "max-sd-NS-year"
 
