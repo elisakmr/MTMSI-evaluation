@@ -45,16 +45,12 @@ pSTAT <- ggplot() +
   coord_sf(xlim = c(-2, 32), 
               ylim = c(40, 71))+ 
   theme_light()+
+  labs(title= "(a)")+
   theme(axis.text = element_text(size=15), 
         legend.position = "bottom", 
         legend.title = element_text(size=18, hjust=0.5),
-        legend.text=element_text(size=15))
-
-# Saving plot
-# png(file.path("carte", "NB_stat.jpg"), 
-#     width = 10, height = 8, units = "in", res=300)
-# pSTAT
-# dev.off()
+        legend.text=element_text(size=15),
+        plot.title = element_text(hjust = 0.5, size=18, face = "bold"))
 
 ```
 
@@ -85,11 +81,13 @@ pBAND <- ggplot() +
   guides(fill=guide_legend(title="Amount of MTMSI elevation bands", title.position = "top")) +
   coord_sf(xlim = c(-2, 32), 
               ylim = c(40, 71))+ 
+  labs(title = "(b)")+
   theme_light()+
   theme(axis.text = element_text(size=15), 
         legend.position = "bottom", 
         legend.title = element_text(size=18, hjust=0.5),
-        legend.text=element_text(size=15))
+        legend.text=element_text(size=15),
+        plot.title = element_text(hjust = 0.5, size=18, face = "bold"))
 
 
 # Plot amount of station per band
@@ -102,18 +100,21 @@ pSTATBAND <- ggplot() +
   guides(fill=guide_legend(title="Amount of stations per elevation band", title.position = "top")) +
   coord_sf(xlim = c(-2, 32), 
               ylim = c(40, 71))+ 
+  labs(title = "(b)")+
   theme_light()+
   theme(axis.text = element_text(size=15), 
         legend.position = "bottom", 
         legend.title = element_text(size=18, hjust=0.5),
-        legend.text=element_text(size=15))
+        legend.text=element_text(size=15),
+        plot.title = element_text(hjust = 0.5, size=18, face = "bold"))
 
 ###
 # Faire pEVAL dans code 'score_histogram'
 ###
 
-png(file.path("carte","map_multiobs2.jpg"), 
-    width = 35, height = 20, units = "in", res=300)
+
+png(file.path("carte","map_multiobs.jpg"), 
+    width = 20, height = 25, units = "in", res=300)
 ggarrange(pSTAT, pBAND, pSTATBAND, pEVAL, nrow = 2, ncol=2)
 dev.off()
 

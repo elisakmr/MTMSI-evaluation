@@ -145,7 +145,7 @@ shp_gamma <- st_read(file.path("carte","data","kge_gamma_all.shp"))
 worldmap <- ne_countries(scale = 'medium', type = 'map_units',
                          returnclass = 'sf')
 
-shp_gamma_class <- shp_gamma %>% mutate(class_gamma = cut(valeur, breaks = c(0.5,0.8,1.2,1.4,1.7,2), labels=c("0.5;0.8","0.8;1.1","1.1;1.4","1.4;1.7","1.7;2")))
+shp_gamma_class <- shp_gamma %>% mutate(class_gamma = cut(valeur, breaks = c(0.5,0.8,1.2,1.5,1.7,2), labels=c("0.5;0.8","0.8;1.2","1.2;1.5","1.5;1.7","1.7;2")))
 palette_gamma <- c("#D4A8E6", "#47CD41","khaki1", "chocolate1", "#9A4A00")
 
 pGAMMA <- ggplot() +
