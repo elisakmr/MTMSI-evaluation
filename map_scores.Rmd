@@ -31,15 +31,10 @@ library(scales)
 
 ```{r, include=FALSE}
 
-
-# LOADING DATA #
-
 shp_bias <- st_read(file.path("carte","data","bias_all.shp")) 
-shp_cor <- st_read(file.path("carte","data", "cor_all.shp")) 
   # country borders #
 worldmap <- ne_countries(scale = 'medium', type = 'map_units',
                          returnclass = 'sf')
-
 
 pBIAS <- ggplot() +
   geom_sf(data=worldmap)+
@@ -55,7 +50,7 @@ pBIAS <- ggplot() +
         panel.background = element_rect(fill = "lightsteelblue2"),
         plot.title = element_text(hjust = 0.5))
 
-png(file.path("carte","mapKGE_new.jpg"), 
+png(file.path("carte","mapBIAS.jpg"), 
     width = 10, height = 8, units = "in", res=300)
 pBIAS
 dev.off()
@@ -66,6 +61,8 @@ dev.off()
 ## CORRELATION
 
 ```{r, include=FALSE}
+
+shp_cor <- st_read(file.path("carte","data", "cor_all.shp")) 
 
 pCOR <- ggplot() +
   geom_sf(data=worldmap)+
@@ -81,7 +78,7 @@ pCOR <- ggplot() +
         panel.background = element_rect(fill = "lightsteelblue2"),
         plot.title = element_text(hjust = 0.5))
 
-png(file.path("carte","mapKGE_new.jpg"), 
+png(file.path("carte","mapCOR.jpg"), 
     width = 10, height = 8, units = "in", res=300)
 pCOR
 dev.off()
