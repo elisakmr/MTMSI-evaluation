@@ -24,6 +24,7 @@ library(RColorBrewer)
 #library(Polychrome)
 library(ggpubr)
 library(scales)
+library(ggnewscale)
 
 ```
 
@@ -125,7 +126,7 @@ pKGE <- ggplot() +
 
 
 png(file.path("carte","mapKGE.jpg"), 
-    width = 10, height = 10, units = "in", res=300)
+    width = 10, height = 8, units = "in", res=300)
 pKGE
 dev.off()
 
@@ -188,7 +189,7 @@ shp_mae$valeur[which(shp_mae$valeur>=1.6)]<-"above_2.5"
 
 
 png(file.path("carte","map_mae.jpg"), 
-    width = 10, height = 10, units = "in", res=300)
+    width = 10, height = 8, units = "in", res=300)
 
 ggplot() +
   geom_sf(data=worldmap)+

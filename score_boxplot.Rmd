@@ -160,7 +160,7 @@ ggplot(df_score3 %>% na.omit()) +
         axis.text.x=element_text(size=8))
     
 
-ggsave(file=file.path("plot", "intcormed_boxalt_i.png"), dpi = 300, width = 8, height = 5)
+ggsave(file=file.path("plot", "intcormed_boxalt2.png"), dpi = 300, width = 8, height = 5)
 
 ```
 

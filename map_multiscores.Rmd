@@ -31,9 +31,9 @@ library(scales)
 ```{r, include=FALSE}
 
 shp_moy <- st_read(file.path("carte","data","sdmean_mtmsi.shp")) 
-shp_bias <- st_read(file.path("carte","data","bias_all.shp")) 
-shp_bias_rel <- st_read(file.path("carte","data","bias_rel_all.shp")) 
-shp_cor <- st_read(file.path("carte","data", "cor_all.shp")) 
+shp_bias <- st_read(file.path("carte","data","bias_all50.shp")) 
+shp_bias_rel <- st_read(file.path("carte","data","bias_rel_all50.shp")) 
+shp_cor <- st_read(file.path("carte","data", "cor_all50.shp")) 
 
   # country borders #
 worldmap <- ne_countries(scale = 'medium', type = 'map_units',
@@ -54,24 +54,13 @@ worldmap <- ne_countries(scale = 'medium', type = 'map_units',
                        guide = guide_colorbar(title.position="top", title.hjust=0.5, 
                                               barwidth = 10, barheight = 0.5, ticks.colour="black"))+
   coord_sf(xlim = c(0, 32), ylim = c(44, 71))+ 
+  labs(title = "(a)")+
   theme_light()+
-  theme(axis.text = element_text(size=15), legend.title = element_text(size=18), 
-        legend.text = element_text(size=15), legend.position = "bottom",
-        panel.background = element_rect(fill = "lightsteelblue2"))
-
-                                      ###### BIAS ######
-
-  pBIAS <- ggplot() +
-  geom_sf(data=worldmap)+
-  geom_sf(data=shp_bias, aes(fill = valeur), colour=NA)+
-  scale_fill_gradient2(low="red", high="blue", mid="white", midpoint=0, 
-                       name="Absolute bias (m)", lim=c(-1.5,1.5), breaks=c(-1.5,-0.8,0,0.8, 1.5),
-                       guide = guide_colorbar(title.position="top", title.hjust=0.5, 
-                                              barwidth = 10, barheight = 0.5, ticks.colour="black"))+
-  coord_sf(xlim = c(0, 32), ylim = c(44, 71))+ 
-  theme_light()+
-  theme(axis.text = element_text(size=15), legend.title = element_text(size=18), 
-        legend.text = element_text(size=15), legend.position = "bottom",
+  theme(axis.text = element_text(size=6), 
+        legend.title = element_text(size=10, hjust=0.5),
+        legend.text = element_text(size=9), 
+        legend.position = "bottom",
+        plot.title = element_text(hjust = 0.5, size=10, face = "bold"),
         panel.background = element_rect(fill = "lightsteelblue2"))
 
 
@@ -85,9 +74,32 @@ worldmap <- ne_countries(scale = 'medium', type = 'map_units',
                        guide = guide_colorbar(title.position="top", title.hjust=0.5, 
                                               barwidth = 10, barheight = 0.5, ticks.colour="black"))+
   coord_sf(xlim = c(0, 32), ylim = c(44, 71))+ 
+  labs(title = "(b)")+
   theme_light()+
-  theme(axis.text = element_text(size=15), legend.title = element_text(size=18), 
-        legend.text = element_text(size=15), legend.position = "bottom",
+  theme(axis.text = element_text(size=6), 
+        legend.title = element_text(size=10, hjust=0.5),
+        legend.text = element_text(size=9), 
+        legend.position = "bottom",
+        plot.title = element_text(hjust = 0.5, size=10, face = "bold"),
+        panel.background = element_rect(fill = "lightsteelblue2"))
+
+                                      ###### BIAS ######
+
+  pBIAS <- ggplot() +
+  geom_sf(data=worldmap)+
+  geom_sf(data=shp_bias, aes(fill = valeur), colour=NA)+
+  scale_fill_gradient2(low="red", high="blue", mid="white", midpoint=0, 
+                       name="Absolute bias (m)", lim=c(-1.5,1.5), breaks=c(-1.5,-0.8,0,0.8, 1.5),
+                       guide = guide_colorbar(title.position="top", title.hjust=0.5, 
+                                              barwidth = 10, barheight = 0.5, ticks.colour="black"))+
+  coord_sf(xlim = c(0, 32), ylim = c(44, 71))+ 
+  labs(title = "(c)")+
+  theme_light()+
+  theme(axis.text = element_text(size=6), 
+        legend.title = element_text(size=10, hjust=0.5),
+        legend.text = element_text(size=9), 
+        legend.position = "bottom",
+        plot.title = element_text(hjust = 0.5, size=10, face = "bold"),
         panel.background = element_rect(fill = "lightsteelblue2"))
 
 
@@ -101,14 +113,18 @@ worldmap <- ne_countries(scale = 'medium', type = 'map_units',
                        guide = guide_colorbar(title.position="top", title.hjust=0.5, 
                                               barwidth = 10, barheight = 0.5, ticks.colour="black"))+ 
   coord_sf(xlim = c(0, 32), ylim = c(44, 71))+ 
+  labs(title = "(d)")+
   theme_light()+
-  theme(axis.text = element_text(size=15), legend.title = element_text(size=18), 
-        legend.text = element_text(size=15), legend.position = "bottom",
+  theme(axis.text = element_text(size=6), 
+        legend.title = element_text(size=10, hjust=0.5),
+        legend.text = element_text(size=9), 
+        legend.position = "bottom",
+        plot.title = element_text(hjust = 0.5, size=10, face = "bold"),
         panel.background = element_rect(fill = "lightsteelblue2"))
   
 
-png(file.path("carte","map_multi2.jpg"), 
-    width = 20, height = 30, units = "in", res=300)
+png(file.path("carte","mapCOR_BIAS-50.jpg"), 
+    width = 8, height = 8, units = "in", res=300) #20 30
 ggarrange(pMOY, pBIASrel, pBIAS, pCOR, nrow = 2, ncol=2)
 dev.off()
 

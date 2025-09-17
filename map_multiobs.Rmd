@@ -46,11 +46,11 @@ pSTAT <- ggplot() +
               ylim = c(40, 71))+ 
   theme_light()+
   labs(title= "(a)")+
-  theme(axis.text = element_text(size=15), 
+  theme(axis.text = element_text(size=6), 
         legend.position = "bottom", 
-        legend.title = element_text(size=18, hjust=0.5),
-        legend.text=element_text(size=15),
-        plot.title = element_text(hjust = 0.5, size=18, face = "bold"))
+        legend.title = element_text(size=10, hjust=0.5),
+        legend.text=element_text(size=9),
+        plot.title = element_text(hjust = 0.5, size=10, face = "bold"))
 
 ```
 
@@ -83,11 +83,11 @@ pBAND <- ggplot() +
               ylim = c(40, 71))+ 
   labs(title = "(b)")+
   theme_light()+
-  theme(axis.text = element_text(size=15), 
+  theme(axis.text = element_text(size=6), 
         legend.position = "bottom", 
-        legend.title = element_text(size=18, hjust=0.5),
-        legend.text=element_text(size=15),
-        plot.title = element_text(hjust = 0.5, size=18, face = "bold"))
+        legend.title = element_text(size=10, hjust=0.5),
+        legend.text=element_text(size=9),
+        plot.title = element_text(hjust = 0.5, size=10, face = "bold"))
 
 
 # Plot amount of station per band
@@ -100,21 +100,21 @@ pSTATBAND <- ggplot() +
   guides(fill=guide_legend(title="Amount of stations per elevation band", title.position = "top")) +
   coord_sf(xlim = c(-2, 32), 
               ylim = c(40, 71))+ 
-  labs(title = "(b)")+
+  labs(title = "(c)")+
   theme_light()+
-  theme(axis.text = element_text(size=15), 
+  theme(axis.text = element_text(size=6), 
         legend.position = "bottom", 
-        legend.title = element_text(size=18, hjust=0.5),
-        legend.text=element_text(size=15),
-        plot.title = element_text(hjust = 0.5, size=18, face = "bold"))
+        legend.title = element_text(size=10, hjust=0.5),
+        legend.text=element_text(size=9),
+        plot.title = element_text(hjust = 0.5, size=10, face = "bold"))
 
 ###
 # Faire pEVAL dans code 'score_histogram'
 ###
 
 
-png(file.path("carte","map_multiobs.jpg"), 
-    width = 20, height = 25, units = "in", res=300)
+png(file.path("carte","NB_stat2.jpg"), 
+    width = 8, height = 8, units = "in", res=300) #20 25
 ggarrange(pSTAT, pBAND, pSTATBAND, pEVAL, nrow = 2, ncol=2)
 dev.off()
 
